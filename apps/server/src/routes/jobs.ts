@@ -5,6 +5,7 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../db';
 import { processJob } from '../services/processor';
+import { enforceStorageLimit } from '../services/storage';
 import { ProgressEvent } from '../types';
 
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
@@ -73,6 +74,8 @@ router.post('/', upload.single('file'), (req: Request, res: Response) => {
       now,
       now
     );
+
+    enforceStorageLimit();
 
     res.json({ id });
   } catch (err) {
