@@ -11,7 +11,8 @@ export interface Segment {
 export interface Transcript {
   id: string;
   originalFilename: string;
-  filePath: string;
+  filePath: string | null;
+  audioUrl: string | null;
   status: TranscriptStatus;
   mode: TranscriptMode;
   model: string;

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import fs from 'fs';
+import path from 'path';
 import db from '../db';
 import { Transcript, Segment } from '../types';
 
@@ -19,10 +20,12 @@ interface DbRow {
 }
 
 function rowToTranscript(row: DbRow): Transcript {
+  const audioUrl = row.file_path ? `/uploads/${path.basename(row.file_path)}` : null;
   return {
     id: row.id,
     originalFilename: row.original_filename,
     filePath: row.file_path,
+    audioUrl,
     status: row.status as Transcript['status'],
     mode: row.mode as Transcript['mode'],
     model: row.model,
