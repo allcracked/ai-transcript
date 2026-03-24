@@ -1,0 +1,15 @@
+node_modules
+.venv
+apps/*/node_modules
+apps/server/dist
+apps/web/dist
+apps/server/data
+apps/server/uploads
+audios
+output
+*.log
+.env
+.env.local
+apps/server/.env
+apps/web/.env
+.DS_Store
