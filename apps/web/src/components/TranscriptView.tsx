@@ -1,15 +1,11 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw } from 'lucide-react';
 import { api, Transcript, Segment } from '../lib/api';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { cn } from '../lib/utils';
-
-interface TranscriptViewProps {
-  transcriptId: string;
-  onBack: () => void;
-}
 
 function formatTimestamp(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -58,7 +54,10 @@ function transcriptToText(segments: Segment[]): string {
     .join('\n\n');
 }
 
-export function TranscriptView({ transcriptId, onBack }: TranscriptViewProps) {
+export function TranscriptView() {
+  const { id: transcriptId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const onBack = () => navigate('/history');
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,13 +79,13 @@ export function TranscriptView({ transcriptId, onBack }: TranscriptViewProps) {
     setLoading(true);
     setError(null);
     api
-      .getTranscript(transcriptId)
+      .getTranscript(transcriptId!)
       .then(setTranscript)
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load transcript');
       })
       .finally(() => setLoading(false));
-  }, [transcriptId]);
+  }, [transcriptId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset audio state when transcript changes
   useEffect(() => {
@@ -95,7 +94,7 @@ export function TranscriptView({ transcriptId, onBack }: TranscriptViewProps) {
     setIsPlaying(false);
     setAudioError(false);
     setAutoScroll(true);
-  }, [transcriptId]);
+  }, [transcriptId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Active segment: last one whose start <= currentTime
   const activeIdx = useMemo(() => {

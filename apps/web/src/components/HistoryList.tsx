@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Eye, RotateCcw, Trash2, FileAudio } from 'lucide-react';
 import { api, Transcript, TranscriptStatus } from '../lib/api';
 import { Button } from './ui/button';
@@ -6,7 +7,7 @@ import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
 
 interface HistoryListProps {
-  onView: (id: string) => void;
+  onView?: (id: string) => void;
   onReprocess: (id: string) => void;
   refreshTrigger?: number;
 }
@@ -31,6 +32,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function HistoryList({ onView, onReprocess, refreshTrigger }: HistoryListProps) {
+  const navigate = useNavigate();
   const [transcripts, setTranscripts] = useState<Transcript[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -156,7 +158,7 @@ export function HistoryList({ onView, onReprocess, refreshTrigger }: HistoryList
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onView(transcript.id)}
+                    onClick={() => { onView?.(transcript.id); navigate(`/transcript/${transcript.id}`); }}
                   >
                     <Eye className="mr-1.5 h-3.5 w-3.5" />
                     View
