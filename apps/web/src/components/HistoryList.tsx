@@ -144,6 +144,9 @@ export function HistoryList({ onView, onReprocess, refreshTrigger }: HistoryList
                     <span className="text-xs text-zinc-600">
                       {formatDate(transcript.createdAt)}
                     </span>
+                    {transcript.uploaderName && (
+                      <span className="text-xs text-zinc-600">· {transcript.uploaderName}</span>
+                    )}
                   </div>
                   {transcript.status === 'error' && transcript.errorMessage && (
                     <p className="mt-1 text-xs text-red-400 truncate max-w-xs">

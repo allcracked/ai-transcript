@@ -233,7 +233,12 @@ export function TranscriptView() {
                 >
                   {transcript.originalFilename}
                 </h2>
-                <p className="text-xs text-zinc-500">{createdDate}</p>
+                <p className="text-xs text-zinc-500">
+                  {createdDate}
+                  {transcript.uploaderName && (
+                    <span className="ml-2 text-zinc-600">· {transcript.uploaderName}</span>
+                  )}
+                </p>
               </div>
               {transcript.segments && transcript.segments.length > 0 && (
                 <>

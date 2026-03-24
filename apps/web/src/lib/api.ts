@@ -24,6 +24,7 @@ export interface Transcript {
   createdAt: string;
   updatedAt: string;
   errorMessage: string | null;
+  uploaderName: string | null;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {

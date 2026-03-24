@@ -19,6 +19,7 @@ interface DbRow {
   updated_at: string;
   error_message: string | null;
   user_id: string | null;
+  uploader_name: string | null;
 }
 
 function rowToTranscript(row: DbRow): Transcript {
@@ -37,6 +38,7 @@ function rowToTranscript(row: DbRow): Transcript {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     errorMessage: row.error_message,
+    uploaderName: row.uploader_name ?? null,
   };
 }
 
@@ -47,8 +49,8 @@ router.get('/', (req: Request, res: Response) => {
     const { currentUser } = req as AuthRequest;
     const rows = (
       currentUser.role === 'admin'
-        ? db.prepare('SELECT * FROM transcripts ORDER BY created_at DESC').all()
-        : db.prepare('SELECT * FROM transcripts WHERE user_id = ? ORDER BY created_at DESC').all(currentUser.id)
+        ? db.prepare('SELECT t.*, u.name as uploader_name FROM transcripts t LEFT JOIN "user" u ON t.user_id = u.id ORDER BY t.created_at DESC').all()
+        : db.prepare('SELECT t.*, u.name as uploader_name FROM transcripts t LEFT JOIN "user" u ON t.user_id = u.id WHERE t.user_id = ? ORDER BY t.created_at DESC').all(currentUser.id)
     ) as DbRow[];
     res.json(rows.map(rowToTranscript));
   } catch (err) {
@@ -61,7 +63,7 @@ router.get('/:id', (req: Request, res: Response) => {
   try {
     const { currentUser } = req as AuthRequest;
     const row = db
-      .prepare('SELECT * FROM transcripts WHERE id = ?')
+      .prepare('SELECT t.*, u.name as uploader_name FROM transcripts t LEFT JOIN "user" u ON t.user_id = u.id WHERE t.id = ?')
       .get(req.params.id) as DbRow | undefined;
 
     if (!row) {

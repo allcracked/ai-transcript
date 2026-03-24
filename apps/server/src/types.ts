@@ -22,6 +22,7 @@ export interface Transcript {
   createdAt: string;
   updatedAt: string;
   errorMessage: string | null;
+  uploaderName: string | null;
 }
 
 export type ProgressStep = 'uploading' | 'transcribing' | 'diarizing' | 'aligning' | 'saving' | 'done' | 'error';
