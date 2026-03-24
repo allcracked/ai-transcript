@@ -4,7 +4,6 @@ import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw } from 'lucide
 import { api, Transcript, Segment } from '../lib/api';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
 import { cn } from '../lib/utils';
 
 function formatTimestamp(seconds: number): string {
@@ -218,52 +217,56 @@ export function TranscriptView() {
         />
       )}
 
-      <div className={cn('space-y-6', hasAudio && 'pb-24')}>
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h2 className="font-semibold text-zinc-100 truncate max-w-xs sm:max-w-md">
-                {transcript.originalFilename}
-              </h2>
-              <p className="text-xs text-zinc-500 mt-0.5">{createdDate}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Badge variant="secondary">
-              {transcript.mode === 'api' ? 'API' : transcript.mode === 'assemblyai' ? 'AssemblyAI' : 'Local'}
-            </Badge>
-            <Badge variant="outline">{transcript.model}</Badge>
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Action buttons */}
-        {transcript.segments && transcript.segments.length > 0 && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleCopy}>
-              {copied ? (
+      <div className={cn('space-y-4', hasAudio && 'pb-24')}>
+        {/* Sticky toolbar — back button, filename, badges, copy/download */}
+        <div className="sticky top-[69px] z-[9] -mx-6 px-6 pt-4 pb-3 bg-zinc-900 border-b border-zinc-800/80">
+          <div className="flex items-center justify-between gap-3">
+            {/* Left: back + filename + actions */}
+            <div className="flex items-center gap-2 min-w-0">
+              <Button variant="ghost" size="sm" onClick={onBack} className="flex-shrink-0">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="min-w-0 mr-2">
+                <h2
+                  title={transcript.originalFilename}
+                  className="font-semibold text-zinc-100 truncate max-w-[140px] sm:max-w-xs cursor-default"
+                >
+                  {transcript.originalFilename}
+                </h2>
+                <p className="text-xs text-zinc-500">{createdDate}</p>
+              </div>
+              {transcript.segments && transcript.segments.length > 0 && (
                 <>
-                  <Check className="mr-2 h-4 w-4 text-green-400" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copy Transcript
+                  <Button variant="outline" size="sm" onClick={handleCopy} className="flex-shrink-0">
+                    {copied ? (
+                      <>
+                        <Check className="mr-1.5 h-3.5 w-3.5 text-green-400" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleDownload} className="flex-shrink-0">
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    Download
+                  </Button>
                 </>
               )}
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="mr-2 h-4 w-4" />
-              Download .txt
-            </Button>
+            </div>
+
+            {/* Right: model info badges */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Badge variant="secondary">
+                {transcript.mode === 'api' ? 'API' : transcript.mode === 'assemblyai' ? 'AssemblyAI' : 'Local'}
+              </Badge>
+              <Badge variant="outline">{transcript.model}</Badge>
+            </div>
           </div>
-        )}
+        </div>
 
         {/* Segments */}
         {!transcript.segments || transcript.segments.length === 0 ? (
