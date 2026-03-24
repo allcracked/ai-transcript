@@ -9,7 +9,9 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
     "assemblyai": "^4.28.0",
+    "better-auth": "^1.5.6",
     "better-sqlite3": "^9.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import db from '../db';
 import { Transcript, Segment } from '../types';
+import { AuthRequest } from '../middleware/auth';
 
 interface DbRow {
   id: string;
@@ -17,6 +18,7 @@ interface DbRow {
   created_at: string;
   updated_at: string;
   error_message: string | null;
+  user_id: string | null;
 }
 
 function rowToTranscript(row: DbRow): Transcript {
@@ -40,11 +42,14 @@ function rowToTranscript(row: DbRow): Transcript {
 
 const router = Router();
 
-router.get('/', (_req: Request, res: Response) => {
+router.get('/', (req: Request, res: Response) => {
   try {
-    const rows = db
-      .prepare('SELECT * FROM transcripts ORDER BY created_at DESC')
-      .all() as DbRow[];
+    const { currentUser } = req as AuthRequest;
+    const rows = (
+      currentUser.role === 'admin'
+        ? db.prepare('SELECT * FROM transcripts ORDER BY created_at DESC').all()
+        : db.prepare('SELECT * FROM transcripts WHERE user_id = ? ORDER BY created_at DESC').all(currentUser.id)
+    ) as DbRow[];
     res.json(rows.map(rowToTranscript));
   } catch (err) {
     console.error('Error listing transcripts:', err);
@@ -54,12 +59,18 @@ router.get('/', (_req: Request, res: Response) => {
 
 router.get('/:id', (req: Request, res: Response) => {
   try {
+    const { currentUser } = req as AuthRequest;
     const row = db
       .prepare('SELECT * FROM transcripts WHERE id = ?')
       .get(req.params.id) as DbRow | undefined;
 
     if (!row) {
       res.status(404).json({ error: 'Transcript not found' });
+      return;
+    }
+
+    if (currentUser.role !== 'admin' && row.user_id !== currentUser.id) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
 
@@ -72,12 +83,18 @@ router.get('/:id', (req: Request, res: Response) => {
 
 router.post('/:id/reprocess', (req: Request, res: Response) => {
   try {
+    const { currentUser } = req as AuthRequest;
     const row = db
       .prepare('SELECT * FROM transcripts WHERE id = ?')
       .get(req.params.id) as DbRow | undefined;
 
     if (!row) {
       res.status(404).json({ error: 'Transcript not found' });
+      return;
+    }
+
+    if (currentUser.role !== 'admin' && row.user_id !== currentUser.id) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
 
@@ -98,12 +115,18 @@ router.post('/:id/reprocess', (req: Request, res: Response) => {
 
 router.delete('/:id', (req: Request, res: Response) => {
   try {
+    const { currentUser } = req as AuthRequest;
     const row = db
       .prepare('SELECT * FROM transcripts WHERE id = ?')
       .get(req.params.id) as DbRow | undefined;
 
     if (!row) {
       res.status(404).json({ error: 'Transcript not found' });
+      return;
+    }
+
+    if (currentUser.role !== 'admin' && row.user_id !== currentUser.id) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
 

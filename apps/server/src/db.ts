@@ -12,6 +12,9 @@ if (!fs.existsSync(dataDir)) {
 const dbPath = path.join(dataDir, 'transcripts.db');
 const db: BetterSqlite3.Database = new Database(dbPath);
 
+// Enable WAL mode for better concurrent read performance
+db.pragma('journal_mode = WAL');
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS transcripts (
     id TEXT PRIMARY KEY,
@@ -28,6 +31,31 @@ db.exec(`
     error_message TEXT
   )
 `);
+
+// App settings table (registration toggle, etc.)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )
+`);
+db.prepare(`INSERT OR IGNORE INTO app_settings (key, value) VALUES ('registration_enabled', 'true')`).run();
+
+// Email/domain allowlist table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS allowlist (
+    id TEXT PRIMARY KEY,
+    value TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL CHECK(type IN ('email', 'domain')),
+    created_at TEXT NOT NULL
+  )
+`);
+
+// Add user_id column to transcripts if it doesn't exist
+const transcriptCols = db.prepare(`PRAGMA table_info(transcripts)`).all() as { name: string }[];
+if (!transcriptCols.find((c) => c.name === 'user_id')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN user_id TEXT`);
+}
 
 // Migration: make file_path nullable on existing databases
 const cols = db.prepare(`PRAGMA table_info(transcripts)`).all() as { name: string; notnull: number }[];

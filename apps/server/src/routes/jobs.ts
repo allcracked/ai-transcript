@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import db from '../db';
 import { processJob } from '../services/processor';
 import { enforceStorageLimit } from '../services/storage';
+import { AuthRequest } from '../middleware/auth';
 import { ProgressEvent } from '../types';
 
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
@@ -59,10 +60,11 @@ router.post('/', upload.single('file'), (req: Request, res: Response) => {
 
     const id = uuidv4();
     const now = new Date().toISOString();
+    const userId = (req as AuthRequest).currentUser.id;
 
     db.prepare(`
-      INSERT INTO transcripts (id, original_filename, file_path, status, mode, model, language, num_speakers, segments, created_at, updated_at, error_message)
-      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, NULL, ?, ?, NULL)
+      INSERT INTO transcripts (id, original_filename, file_path, status, mode, model, language, num_speakers, segments, created_at, updated_at, error_message, user_id)
+      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, NULL, ?, ?, NULL, ?)
     `).run(
       id,
       req.file.originalname,
@@ -72,7 +74,8 @@ router.post('/', upload.single('file'), (req: Request, res: Response) => {
       language && language !== 'auto' ? language : null,
       numSpeakers,
       now,
-      now
+      now,
+      userId
     );
 
     enforceStorageLimit();

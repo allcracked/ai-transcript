@@ -5,9 +5,13 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import { toNodeHandler } from 'better-auth/node';
 
+import { auth } from './auth';
+import { requireAuth } from './middleware/auth';
 import jobsRouter from './routes/jobs';
 import transcriptsRouter from './routes/transcripts';
+import adminRouter from './routes/admin';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -25,22 +29,30 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 app.use(
   cors({
     origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   })
 );
+
+// Better Auth handler — must be before express.json() and any auth middleware
+app.all('/api/auth/*', toNodeHandler(auth));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/uploads', express.static(uploadsDir));
 
-app.use('/api/jobs', jobsRouter);
-app.use('/api/transcripts', transcriptsRouter);
-
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// All routes below require authentication
+app.use('/api', requireAuth);
+
+app.use('/api/jobs', jobsRouter);
+app.use('/api/transcripts', transcriptsRouter);
+app.use('/api/admin', adminRouter);
 
 // Serve React frontend (production build copied to dist/public by Dockerfile)
 const publicDir = path.join(__dirname, 'public');
