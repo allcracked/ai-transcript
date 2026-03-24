@@ -34,7 +34,7 @@ function AppLayout() {
               <Mic className="h-5 w-5 text-blue-400" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-zinc-100">Whisper For Calls</h1>
+              <h1 className="text-lg font-semibold text-zinc-100">Audio Transcription Tool</h1>
               <p className="text-xs text-zinc-500">AI-powered transcription & speaker diarization</p>
             </div>
           </div>

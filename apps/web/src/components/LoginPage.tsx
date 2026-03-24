@@ -29,7 +29,7 @@ export function LoginPage() {
             <Mic className="h-7 w-7 text-blue-400" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-semibold text-zinc-100">Whisper For Calls</h1>
+            <h1 className="text-2xl font-semibold text-zinc-100">Audio Transcription Tool</h1>
             <p className="mt-1 text-sm text-zinc-500">Sign in to access your transcripts</p>
           </div>
         </div>
