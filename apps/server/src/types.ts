@@ -3,9 +3,13 @@ export type BriefStatus = 'pending' | 'processing' | 'done' | 'error';
 
 export interface CallBrief {
   workType: string | null;
+  workTypeTimestamp: number | null;
   appointmentAgreed: boolean | null;
+  appointmentAgreedTimestamp: number | null;
   ownerPresent: string | null;
+  ownerPresentTimestamp: number | null;
   appointmentDate: string | null;
+  appointmentDateTimestamp: number | null;
 }
 export type TranscriptMode = 'assemblyai' | 'local' | 'api';
 

@@ -57,10 +57,16 @@ function BriefField({
   icon,
   label,
   value,
+  timestamp,
+  hasAudio,
+  onSeek,
 }: {
   icon: React.ReactNode;
   label: string;
   value: React.ReactNode;
+  timestamp: number | null;
+  hasAudio: boolean;
+  onSeek: (t: number) => void;
 }) {
   return (
     <div className="flex items-start gap-3">
@@ -70,6 +76,15 @@ function BriefField({
       <div className="min-w-0">
         <p className="text-xs text-zinc-500 uppercase tracking-wide font-medium">{label}</p>
         <p className="mt-0.5 text-sm text-zinc-200">{value}</p>
+        {timestamp !== null && hasAudio && (
+          <button
+            onClick={() => onSeek(timestamp)}
+            className="mt-1 flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            <Play className="h-2.5 w-2.5" />
+            {formatPlayerTime(timestamp)}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -431,15 +446,51 @@ export function TranscriptView() {
                     </Button>
                   </div>
                 ) : brief ? (
+                  <div className="space-y-3">
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleGenerateBrief}
+                      className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+                      title="Re-run brief analysis"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Re-run analysis
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <BriefField icon={<Wrench className="h-3.5 w-3.5" />} label="Work Requested" value={brief.workType ?? 'Not mentioned'} />
+                    <BriefField
+                      icon={<Wrench className="h-3.5 w-3.5" />}
+                      label="Work Requested"
+                      value={brief.workType ?? 'Not mentioned'}
+                      timestamp={brief.workTypeTimestamp ?? null}
+                      hasAudio={hasAudio}
+                      onSeek={handleSegmentClick}
+                    />
                     <BriefField
                       icon={<AppointmentIcon value={brief.appointmentAgreed} />}
                       label="Appointment Agreed"
                       value={brief.appointmentAgreed === true ? 'Yes' : brief.appointmentAgreed === false ? 'No' : 'Not mentioned'}
+                      timestamp={brief.appointmentAgreedTimestamp ?? null}
+                      hasAudio={hasAudio}
+                      onSeek={handleSegmentClick}
                     />
-                    <BriefField icon={<UserCheck className="h-3.5 w-3.5" />} label="Owner Present" value={brief.ownerPresent ?? 'Not mentioned'} />
-                    <BriefField icon={<Calendar className="h-3.5 w-3.5" />} label="Appointment Date" value={brief.appointmentDate ?? 'Not mentioned'} />
+                    <BriefField
+                      icon={<UserCheck className="h-3.5 w-3.5" />}
+                      label="Owner Present"
+                      value={brief.ownerPresent ?? 'Not mentioned'}
+                      timestamp={brief.ownerPresentTimestamp ?? null}
+                      hasAudio={hasAudio}
+                      onSeek={handleSegmentClick}
+                    />
+                    <BriefField
+                      icon={<Calendar className="h-3.5 w-3.5" />}
+                      label="Appointment Date"
+                      value={brief.appointmentDate ?? 'Not mentioned'}
+                      timestamp={brief.appointmentDateTimestamp ?? null}
+                      hasAudio={hasAudio}
+                      onSeek={handleSegmentClick}
+                    />
+                  </div>
                   </div>
                 ) : null}
               </div>
