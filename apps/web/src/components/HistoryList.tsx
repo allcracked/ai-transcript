@@ -429,6 +429,9 @@ export function HistoryList({ onView, onReprocess, refreshTrigger }: HistoryList
             <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">
               {group.label}
             </span>
+            <span className="flex items-center justify-center rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] font-medium text-zinc-400 tabular-nums">
+              {group.items.length}
+            </span>
             <div className="flex-1 h-px bg-zinc-800" />
           </div>
 
