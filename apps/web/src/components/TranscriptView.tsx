@@ -121,6 +121,7 @@ export function TranscriptView() {
   const [analysisSectionOpen, setAnalysisSectionOpen] = useState(true);
 
   // Snippet export state
+  const [isClipMode, setIsClipMode] = useState(false);
   const [selectedSegments, setSelectedSegments] = useState<Set<number>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
 
@@ -334,6 +335,8 @@ export function TranscriptView() {
       a.click();
       URL.revokeObjectURL(url);
       await audioCtx.close();
+      setIsClipMode(false);
+      setSelectedSegments(new Set());
     } catch (err) {
       console.error('Snippet export failed:', err);
     } finally {
@@ -497,29 +500,49 @@ export function TranscriptView() {
                 <Download className="mr-1.5 h-3.5 w-3.5" />
                 Download
               </Button>
-              {hasAudio && selectedSegments.size > 0 && (
+              {hasAudio && !isClipMode && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleExportSnippet}
-                  disabled={isExporting}
-                  className="text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+                  onClick={() => { setIsClipMode(true); setSelectedSegments(new Set()); }}
                 >
-                  {isExporting ? (
-                    <>
-                      <svg className="mr-1.5 h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Exporting…
-                    </>
-                  ) : (
-                    <>
-                      <Scissors className="mr-1.5 h-3.5 w-3.5" />
-                      Export Snippet ({selectedSegments.size})
-                    </>
-                  )}
+                  <Scissors className="mr-1.5 h-3.5 w-3.5" />
+                  Create Clip
                 </Button>
+              )}
+              {hasAudio && isClipMode && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportSnippet}
+                    disabled={isExporting || selectedSegments.size === 0}
+                    className="text-blue-400 border-blue-500/30 hover:bg-blue-500/10 disabled:opacity-40"
+                  >
+                    {isExporting ? (
+                      <>
+                        <svg className="mr-1.5 h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Exporting…
+                      </>
+                    ) : (
+                      <>
+                        <Scissors className="mr-1.5 h-3.5 w-3.5" />
+                        Export Clip{selectedSegments.size > 0 ? ` (${selectedSegments.size})` : ''}
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setIsClipMode(false); setSelectedSegments(new Set()); }}
+                    disabled={isExporting}
+                  >
+                    Cancel Export
+                  </Button>
+                </>
               )}
             </div>
           )}
@@ -545,7 +568,7 @@ export function TranscriptView() {
                   ref={(el) => { segmentRefs.current[idx] = el; }}
                   className={cn(
                     'rounded-xl border p-4 space-y-2 transition-colors duration-150',
-                    isSelected
+                    isClipMode && isSelected
                       ? 'border-blue-500/40 bg-blue-500/5'
                       : isActive
                       ? 'border-blue-500/50 bg-blue-500/5'
@@ -553,14 +576,16 @@ export function TranscriptView() {
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    {/* Checkbox */}
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSegmentSelection(idx)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="h-3.5 w-3.5 flex-shrink-0 rounded accent-blue-500 cursor-pointer"
-                    />
+                    {/* Checkbox — only visible in clip mode */}
+                    {isClipMode && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSegmentSelection(idx)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-3.5 w-3.5 flex-shrink-0 rounded accent-blue-500 cursor-pointer"
+                      />
+                    )}
                     <span
                       onClick={() => hasAudio && handleSegmentClick(seg.start)}
                       className={cn(
@@ -674,7 +699,7 @@ export function TranscriptView() {
 
       {/* ── AI Insights side panel ── */}
       {aiPanelOpen && (
-        <div className="fixed right-0 top-0 bottom-0 z-40 w-80 flex flex-col bg-zinc-950 border-l border-zinc-800 shadow-2xl shadow-black/40">
+        <div className="fixed right-0 top-[69px] bottom-0 z-40 w-80 flex flex-col bg-zinc-950 border-l border-t border-zinc-800 shadow-2xl shadow-black/40">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
             <div className="flex items-center gap-2">
@@ -727,11 +752,9 @@ export function TranscriptView() {
                       </div>
                     ) : brief ? (
                       <div className="space-y-3">
-                        <div className="flex justify-end">
-                          <button onClick={handleGenerateBrief} className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors">
-                            <RefreshCw className="h-3 w-3" />Re-run
-                          </button>
-                        </div>
+                        <button onClick={handleGenerateBrief} className="flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 transition-colors">
+                          <RefreshCw className="h-3 w-3" />Re-run
+                        </button>
                         <div className="grid grid-cols-2 gap-3">
                           <BriefField
                             icon={<Wrench className="h-3.5 w-3.5" />}

@@ -540,7 +540,7 @@ export function BatchView({ batchId }: { batchId: string }) {
 
       {/* ── AI Insights side panel ── */}
       {aiPanelOpen && (
-        <div className="fixed right-0 top-0 bottom-0 z-40 w-80 flex flex-col bg-zinc-950 border-l border-zinc-800 shadow-2xl shadow-black/40">
+        <div className="fixed right-0 top-[69px] bottom-0 z-40 w-80 flex flex-col bg-zinc-950 border-l border-t border-zinc-800 shadow-2xl shadow-black/40">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
             <div className="flex items-center gap-2">
@@ -593,11 +593,9 @@ export function BatchView({ batchId }: { batchId: string }) {
                       </div>
                     ) : brief ? (
                       <div className="space-y-3">
-                        <div className="flex justify-end">
-                          <button onClick={handleGenerateBrief} className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors">
-                            <RefreshCw className="h-3 w-3" />Re-run
-                          </button>
-                        </div>
+                        <button onClick={handleGenerateBrief} className="flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 transition-colors">
+                          <RefreshCw className="h-3 w-3" />Re-run
+                        </button>
                         <div className="grid grid-cols-2 gap-3">
                           <BriefField
                             icon={<Wrench className="h-3.5 w-3.5" />}
