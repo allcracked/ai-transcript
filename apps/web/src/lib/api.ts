@@ -75,6 +75,36 @@ export interface Transcript {
   batchOrder: number | null;
 }
 
+export interface HistoryItem {
+  kind: 'transcript' | 'batch';
+  id: string;
+  name: string;
+  status: string;
+  createdAt: string;
+  uploaderName: string | null;
+  model: string | null;
+  mode: TranscriptMode | null;
+  errorMessage: string | null;
+  callCount: number | null;
+}
+
+export interface HistoryPage {
+  items: HistoryItem[];
+  total: number;
+  hasMore: boolean;
+}
+
+export interface HistoryParams {
+  limit?: number;
+  offset?: number;
+  status?: string;
+  type?: 'transcript' | 'batch';
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  uploader?: string;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const text = await res.text();
@@ -208,5 +238,19 @@ export const api = {
   async deleteBatch(id: string): Promise<void> {
     const res = await fetch(`${BASE}/batches/${id}`, { method: 'DELETE' });
     return handleResponse<void>(res);
+  },
+
+  async getHistory(params: HistoryParams = {}): Promise<HistoryPage> {
+    const q = new URLSearchParams();
+    if (params.limit != null)  q.set('limit',    String(params.limit));
+    if (params.offset != null) q.set('offset',   String(params.offset));
+    if (params.status)         q.set('status',   params.status);
+    if (params.type)           q.set('type',     params.type);
+    if (params.search)         q.set('search',   params.search);
+    if (params.dateFrom)       q.set('dateFrom', params.dateFrom);
+    if (params.dateTo)         q.set('dateTo',   params.dateTo);
+    if (params.uploader)       q.set('uploader', params.uploader);
+    const res = await fetch(`${BASE}/history?${q.toString()}`);
+    return handleResponse<HistoryPage>(res);
   },
 };

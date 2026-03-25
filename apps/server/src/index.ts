@@ -14,6 +14,7 @@ import transcriptsRouter from './routes/transcripts';
 import adminRouter from './routes/admin';
 import rubricsRouter from './routes/rubrics';
 import batchesRouter from './routes/batches';
+import historyRouter from './routes/history';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -57,6 +58,7 @@ app.use('/api/transcripts', transcriptsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/rubrics', rubricsRouter);
 app.use('/api/batches', batchesRouter);
+app.use('/api/history', historyRouter);
 
 // Serve React frontend (production build copied to dist/public by Dockerfile)
 const publicDir = path.join(__dirname, 'public');
