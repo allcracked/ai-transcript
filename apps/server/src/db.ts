@@ -56,6 +56,12 @@ const transcriptCols = db.prepare(`PRAGMA table_info(transcripts)`).all() as { n
 if (!transcriptCols.find((c) => c.name === 'user_id')) {
   db.exec(`ALTER TABLE transcripts ADD COLUMN user_id TEXT`);
 }
+if (!transcriptCols.find((c) => c.name === 'brief')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN brief TEXT`);
+}
+if (!transcriptCols.find((c) => c.name === 'brief_status')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN brief_status TEXT`);
+}
 
 // Migration: make file_path nullable on existing databases
 const cols = db.prepare(`PRAGMA table_info(transcripts)`).all() as { name: string; notnull: number }[];

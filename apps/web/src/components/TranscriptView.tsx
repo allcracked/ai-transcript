@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw } from 'lucide-react';
-import { api, Transcript, Segment } from '../lib/api';
+import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw, Sparkles, RefreshCw, Calendar, Wrench, UserCheck, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
+import { api, Transcript, Segment, CallBrief } from '../lib/api';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
@@ -53,6 +53,35 @@ function transcriptToText(segments: Segment[]): string {
     .join('\n\n');
 }
 
+function BriefField({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-zinc-800 text-zinc-400">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-zinc-500 uppercase tracking-wide font-medium">{label}</p>
+        <p className="mt-0.5 text-sm text-zinc-200">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function AppointmentIcon({ value }: { value: boolean | null }) {
+  if (value === true) return <CheckCircle2 className="h-4 w-4 text-green-400" />;
+  if (value === false) return <XCircle className="h-4 w-4 text-red-400" />;
+  return <HelpCircle className="h-4 w-4 text-zinc-500" />;
+}
+
+
 export function TranscriptView() {
   const { id: transcriptId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -69,6 +98,14 @@ export function TranscriptView() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState(false);
 
+  // Brief state
+  const [brief, setBrief] = useState<CallBrief | null>(null);
+  const [briefStatus, setBriefStatus] = useState<string | null>(null);
+  const [briefOpen, setBriefOpen] = useState(false);
+  const briefPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bottomBarRef = useRef<HTMLDivElement>(null);
+  const [bottomBarHeight, setBottomBarHeight] = useState(56);
+
   // Auto-scroll state
   const [autoScroll, setAutoScroll] = useState(true);
   const isAutoScrollingRef = useRef(false);
@@ -79,12 +116,39 @@ export function TranscriptView() {
     setError(null);
     api
       .getTranscript(transcriptId!)
-      .then(setTranscript)
+      .then((t) => {
+        setTranscript(t);
+        setBrief(t.brief);
+        setBriefStatus(t.briefStatus);
+        if (t.brief) setBriefOpen(true);
+      })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load transcript');
       })
       .finally(() => setLoading(false));
   }, [transcriptId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll for brief updates while it is being generated
+  useEffect(() => {
+    if (briefStatus === 'processing' || briefStatus === 'pending') {
+      briefPollRef.current = setInterval(async () => {
+        try {
+          const t = await api.getTranscript(transcriptId!);
+          setBrief(t.brief);
+          setBriefStatus(t.briefStatus);
+          if (t.briefStatus !== 'processing' && t.briefStatus !== 'pending') {
+            clearInterval(briefPollRef.current!);
+            if (t.brief) setBriefOpen(true);
+          }
+        } catch {
+          // ignore polling errors
+        }
+      }, 3000);
+    }
+    return () => {
+      if (briefPollRef.current) clearInterval(briefPollRef.current);
+    };
+  }, [briefStatus, transcriptId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset audio state when transcript changes
   useEffect(() => {
@@ -170,6 +234,26 @@ export function TranscriptView() {
     audioRef.current.play();
   }, []);
 
+  const handleGenerateBrief = useCallback(async () => {
+    if (!transcriptId) return;
+    setBriefStatus('processing');
+    try {
+      await api.generateBrief(transcriptId);
+    } catch {
+      setBriefStatus('error');
+    }
+  }, [transcriptId]);
+
+  // Keep bottom padding in sync with the bar's actual height
+  useEffect(() => {
+    if (!bottomBarRef.current) return;
+    const obs = new ResizeObserver(() => {
+      setBottomBarHeight(bottomBarRef.current?.offsetHeight ?? 56);
+    });
+    obs.observe(bottomBarRef.current);
+    return () => obs.disconnect();
+  }, []);
+
   const hasAudio = !!transcript?.audioUrl && !audioError;
 
   if (loading) {
@@ -217,7 +301,7 @@ export function TranscriptView() {
         />
       )}
 
-      <div className={cn('space-y-4', hasAudio && 'pb-24')}>
+      <div className="space-y-4" style={hasAudio ? { paddingBottom: bottomBarHeight + 16 } : undefined}>
         {/* Sticky toolbar — back button, filename, badges, copy/download */}
         <div className="sticky top-[69px] z-[9] -mx-6 px-6 pt-4 pb-3 bg-zinc-900 border-b border-zinc-800/80">
           <div className="flex items-center justify-between gap-3">
@@ -322,55 +406,122 @@ export function TranscriptView() {
         )}
       </div>
 
-      {/* Fixed bottom audio player */}
+      {/* Fixed bottom bar: brief panel + audio player */}
       {hasAudio && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-sm px-4 py-3">
-          <div className="mx-auto max-w-3xl flex items-center gap-4">
-            {/* Play / Pause */}
-            <button
-              onClick={togglePlay}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-500 transition-colors"
-            >
-              {isPlaying ? (
-                <Pause className="h-4 w-4 text-white" />
-              ) : (
-                <Play className="h-4 w-4 text-white translate-x-px" />
-              )}
-            </button>
+        <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur-sm border-t border-zinc-800">
 
-            {/* Time + seek bar */}
-            <div className="flex flex-1 items-center gap-3 min-w-0">
-              <span className="text-xs text-zinc-400 font-mono flex-shrink-0 w-10 text-right">
-                {formatPlayerTime(currentTime)}
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={duration || 0}
-                step={0.1}
-                value={currentTime}
-                onChange={handleSeek}
-                className="flex-1 h-1.5 appearance-none rounded-full bg-zinc-700 accent-blue-500 cursor-pointer"
-              />
-              <span className="text-xs text-zinc-500 font-mono flex-shrink-0 w-10">
-                {formatPlayerTime(duration)}
-              </span>
+          {/* Collapsible brief panel */}
+          {briefOpen && (brief || briefStatus === 'processing' || briefStatus === 'pending' || briefStatus === 'error') && (
+            <div className="border-b border-zinc-800 px-4 py-4">
+              <div className="mx-auto max-w-3xl">
+                {briefStatus === 'processing' || briefStatus === 'pending' ? (
+                  <div className="flex items-center gap-2 text-sm text-zinc-500">
+                    <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Generating call brief…
+                  </div>
+                ) : briefStatus === 'error' ? (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-red-400">Failed to generate brief.</p>
+                    <Button variant="ghost" size="sm" onClick={handleGenerateBrief} className="text-zinc-500 hover:text-zinc-200">
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      Retry
+                    </Button>
+                  </div>
+                ) : brief ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <BriefField icon={<Wrench className="h-3.5 w-3.5" />} label="Work Requested" value={brief.workType ?? 'Not mentioned'} />
+                    <BriefField
+                      icon={<AppointmentIcon value={brief.appointmentAgreed} />}
+                      label="Appointment Agreed"
+                      value={brief.appointmentAgreed === true ? 'Yes' : brief.appointmentAgreed === false ? 'No' : 'Not mentioned'}
+                    />
+                    <BriefField icon={<UserCheck className="h-3.5 w-3.5" />} label="Owner Present" value={brief.ownerPresent ?? 'Not mentioned'} />
+                    <BriefField icon={<Calendar className="h-3.5 w-3.5" />} label="Appointment Date" value={brief.appointmentDate ?? 'Not mentioned'} />
+                  </div>
+                ) : null}
+              </div>
             </div>
+          )}
 
-            {/* Sync button — only shown when auto-scroll is off */}
-            <button
-              onClick={() => setAutoScroll(true)}
-              className={cn(
-                'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all',
-                autoScroll
-                  ? 'text-zinc-600 pointer-events-none'
-                  : 'text-blue-400 hover:bg-blue-500/10 border border-blue-500/30'
+          {/* Player controls row */}
+          <div className="px-4 py-3">
+            <div className="mx-auto max-w-3xl flex items-center gap-4">
+              {/* Play / Pause */}
+              <button
+                onClick={togglePlay}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-500 transition-colors"
+              >
+                {isPlaying ? (
+                  <Pause className="h-4 w-4 text-white" />
+                ) : (
+                  <Play className="h-4 w-4 text-white translate-x-px" />
+                )}
+              </button>
+
+              {/* Time + seek bar */}
+              <div className="flex flex-1 items-center gap-3 min-w-0">
+                <span className="text-xs text-zinc-400 font-mono flex-shrink-0 w-10 text-right">
+                  {formatPlayerTime(currentTime)}
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 0}
+                  step={0.1}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  className="flex-1 h-1.5 appearance-none rounded-full bg-zinc-700 accent-blue-500 cursor-pointer"
+                />
+                <span className="text-xs text-zinc-500 font-mono flex-shrink-0 w-10">
+                  {formatPlayerTime(duration)}
+                </span>
+              </div>
+
+              {/* Sync button */}
+              <button
+                onClick={() => setAutoScroll(true)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all',
+                  autoScroll
+                    ? 'text-zinc-600 pointer-events-none'
+                    : 'text-blue-400 hover:bg-blue-500/10 border border-blue-500/30'
+                )}
+                title="Re-enable auto-scroll"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Sync
+              </button>
+
+              {/* Brief toggle / generate */}
+              {transcript.status === 'done' && (
+                <button
+                  onClick={() => {
+                    if (!brief && briefStatus !== 'processing' && briefStatus !== 'pending') {
+                      handleGenerateBrief();
+                      setBriefOpen(true);
+                    } else {
+                      setBriefOpen((v) => !v);
+                    }
+                  }}
+                  title={brief ? (briefOpen ? 'Hide brief' : 'Show brief') : 'Generate brief'}
+                  className={cn(
+                    'relative flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all',
+                    briefOpen && (brief || briefStatus)
+                      ? 'text-blue-400 bg-blue-500/10 border border-blue-500/30'
+                      : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
+                  )}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  Brief
+                  {(briefStatus === 'processing' || briefStatus === 'pending') && (
+                    <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                  )}
+                </button>
               )}
-              title="Re-enable auto-scroll"
-            >
-              <RotateCcw className="h-3 w-3" />
-              Sync
-            </button>
+            </div>
           </div>
         </div>
       )}

@@ -2,6 +2,14 @@ const BASE = '/api';
 
 export type TranscriptStatus = 'pending' | 'processing' | 'done' | 'error';
 export type TranscriptMode = 'assemblyai' | 'local' | 'api';
+export type BriefStatus = 'pending' | 'processing' | 'done' | 'error';
+
+export interface CallBrief {
+  workType: string | null;
+  appointmentAgreed: boolean | null;
+  ownerPresent: string | null;
+  appointmentDate: string | null;
+}
 
 export interface Segment {
   start: number;
@@ -25,6 +33,8 @@ export interface Transcript {
   updatedAt: string;
   errorMessage: string | null;
   uploaderName: string | null;
+  brief: CallBrief | null;
+  briefStatus: BriefStatus | null;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -74,5 +84,12 @@ export const api = {
       method: 'DELETE',
     });
     return handleResponse<void>(res);
+  },
+
+  async generateBrief(id: string): Promise<{ status: string }> {
+    const res = await fetch(`${BASE}/transcripts/${id}/brief`, {
+      method: 'POST',
+    });
+    return handleResponse<{ status: string }>(res);
   },
 };

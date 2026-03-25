@@ -4,6 +4,7 @@ import { transcribeWithApi, transcribeLocally } from './whisper';
 import { diarize, transcribeAndDiarize } from './diarize';
 import { diarizeWithPyannote } from './diarize-pyannote';
 import { align } from './align';
+import { generateBrief } from './brief';
 
 interface DbRow {
   id: string;
@@ -245,6 +246,11 @@ export async function processJob(
       message: 'Processing complete!',
       transcriptId,
     });
+
+    // Generate brief in the background — does not block the SSE response
+    generateBrief(transcriptId).catch((err) =>
+      console.error('[BRIEF] Background generation error:', err)
+    );
   } catch (err) {
     const errorMessage = String(err instanceof Error ? err.message : err);
     console.error(`[PROCESSOR] ✗ Job failed: ${transcriptId} — ${errorMessage}`);

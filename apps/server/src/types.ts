@@ -1,4 +1,12 @@
 export type TranscriptStatus = 'pending' | 'processing' | 'done' | 'error';
+export type BriefStatus = 'pending' | 'processing' | 'done' | 'error';
+
+export interface CallBrief {
+  workType: string | null;
+  appointmentAgreed: boolean | null;
+  ownerPresent: string | null;
+  appointmentDate: string | null;
+}
 export type TranscriptMode = 'assemblyai' | 'local' | 'api';
 
 export interface Segment {
@@ -23,6 +31,8 @@ export interface Transcript {
   updatedAt: string;
   errorMessage: string | null;
   uploaderName: string | null;
+  brief: CallBrief | null;
+  briefStatus: BriefStatus | null;
 }
 
 export type ProgressStep = 'uploading' | 'transcribing' | 'diarizing' | 'aligning' | 'saving' | 'done' | 'error';

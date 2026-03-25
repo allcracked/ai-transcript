@@ -2,8 +2,9 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import db from '../db';
-import { Transcript, Segment } from '../types';
+import { Transcript, Segment, CallBrief } from '../types';
 import { AuthRequest } from '../middleware/auth';
+import { generateBrief } from '../services/brief';
 
 interface DbRow {
   id: string;
@@ -20,6 +21,8 @@ interface DbRow {
   error_message: string | null;
   user_id: string | null;
   uploader_name: string | null;
+  brief: string | null;
+  brief_status: string | null;
 }
 
 function rowToTranscript(row: DbRow): Transcript {
@@ -39,6 +42,8 @@ function rowToTranscript(row: DbRow): Transcript {
     updatedAt: row.updated_at,
     errorMessage: row.error_message,
     uploaderName: row.uploader_name ?? null,
+    brief: row.brief ? (JSON.parse(row.brief) as CallBrief) : null,
+    briefStatus: (row.brief_status ?? null) as Transcript['briefStatus'],
   };
 }
 
@@ -111,6 +116,45 @@ router.post('/:id/reprocess', (req: Request, res: Response) => {
     res.json({ id: req.params.id });
   } catch (err) {
     console.error('Error reprocessing transcript:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+router.post('/:id/brief', async (req: Request, res: Response) => {
+  try {
+    const { currentUser } = req as AuthRequest;
+    const row = db
+      .prepare('SELECT id, user_id, status, brief_status FROM transcripts WHERE id = ?')
+      .get(req.params.id) as { id: string; user_id: string | null; status: string; brief_status: string | null } | undefined;
+
+    if (!row) {
+      res.status(404).json({ error: 'Transcript not found' });
+      return;
+    }
+
+    if (currentUser.role !== 'admin' && row.user_id !== currentUser.id) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    if (row.status !== 'done') {
+      res.status(400).json({ error: 'Transcript is not yet complete' });
+      return;
+    }
+
+    if (row.brief_status === 'processing') {
+      res.status(409).json({ error: 'Brief is already being generated' });
+      return;
+    }
+
+    // Fire and forget
+    generateBrief(row.id).catch((err) =>
+      console.error('[BRIEF] Manual generation error:', err)
+    );
+
+    res.json({ status: 'processing' });
+  } catch (err) {
+    console.error('Error triggering brief generation:', err);
     res.status(500).json({ error: String(err) });
   }
 });
