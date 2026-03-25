@@ -25,7 +25,8 @@ interface DbRow {
 
 export async function processJob(
   transcriptId: string,
-  emitProgress: (event: ProgressEvent) => void
+  emitProgress: (event: ProgressEvent) => void,
+  options?: { skipBrief?: boolean }
 ): Promise<void> {
   let filePath = '';
 
@@ -250,9 +251,11 @@ export async function processJob(
     });
 
     // Generate brief in the background — does not block the SSE response
-    generateBrief(transcriptId).catch((err) =>
-      console.error('[BRIEF] Background generation error:', err)
-    );
+    if (!options?.skipBrief) {
+      generateBrief(transcriptId).catch((err) =>
+        console.error('[BRIEF] Background generation error:', err)
+      );
+    }
 
     // Auto-run rubric analysis if one was selected at upload time
     if (row.rubric_id) {

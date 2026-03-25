@@ -64,6 +64,21 @@ db.exec(`
   )
 `);
 
+// Call batches table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS call_batches (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    combined_analysis TEXT,
+    combined_analysis_status TEXT,
+    user_id TEXT,
+    rubric_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`);
+
 // Add user_id column to transcripts if it doesn't exist
 const transcriptCols = db.prepare(`PRAGMA table_info(transcripts)`).all() as { name: string }[];
 if (!transcriptCols.find((c) => c.name === 'user_id')) {
@@ -83,6 +98,12 @@ if (!transcriptCols.find((c) => c.name === 'rubric_result')) {
 }
 if (!transcriptCols.find((c) => c.name === 'rubric_status')) {
   db.exec(`ALTER TABLE transcripts ADD COLUMN rubric_status TEXT`);
+}
+if (!transcriptCols.find((c) => c.name === 'batch_id')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN batch_id TEXT`);
+}
+if (!transcriptCols.find((c) => c.name === 'batch_order')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN batch_order INTEGER`);
 }
 
 // Migration: make file_path nullable on existing databases
@@ -112,6 +133,15 @@ if (filePathCol && filePathCol.notnull === 1) {
     COMMIT;
     PRAGMA foreign_keys=on;
   `);
+}
+
+// Add rubric columns to call_batches if they don't exist
+const batchCols = db.prepare(`PRAGMA table_info(call_batches)`).all() as { name: string }[];
+if (!batchCols.find((c) => c.name === 'rubric_result')) {
+  db.exec(`ALTER TABLE call_batches ADD COLUMN rubric_result TEXT`);
+}
+if (!batchCols.find((c) => c.name === 'rubric_status')) {
+  db.exec(`ALTER TABLE call_batches ADD COLUMN rubric_status TEXT`);
 }
 
 export default db;

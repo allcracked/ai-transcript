@@ -51,6 +51,8 @@ function rowToTranscript(row: DbRow): Transcript {
     rubricId: row.rubric_id ?? null,
     rubricResult: row.rubric_result ?? null,
     rubricStatus: (row.rubric_status ?? null) as Transcript['rubricStatus'],
+    batchId: (row as any).batch_id ?? null,
+    batchOrder: (row as any).batch_order ?? null,
   };
 }
 
@@ -61,8 +63,8 @@ router.get('/', (req: Request, res: Response) => {
     const { currentUser } = req as AuthRequest;
     const rows = (
       currentUser.role === 'admin'
-        ? db.prepare('SELECT t.*, u.name as uploader_name FROM transcripts t LEFT JOIN "user" u ON t.user_id = u.id ORDER BY t.created_at DESC').all()
-        : db.prepare('SELECT t.*, u.name as uploader_name FROM transcripts t LEFT JOIN "user" u ON t.user_id = u.id WHERE t.user_id = ? ORDER BY t.created_at DESC').all(currentUser.id)
+        ? db.prepare('SELECT t.*, u.name as uploader_name FROM transcripts t LEFT JOIN "user" u ON t.user_id = u.id WHERE t.batch_id IS NULL ORDER BY t.created_at DESC').all()
+        : db.prepare('SELECT t.*, u.name as uploader_name FROM transcripts t LEFT JOIN "user" u ON t.user_id = u.id WHERE t.user_id = ? AND t.batch_id IS NULL ORDER BY t.created_at DESC').all(currentUser.id)
     ) as DbRow[];
     res.json(rows.map(rowToTranscript));
   } catch (err) {

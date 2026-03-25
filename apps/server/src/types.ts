@@ -1,4 +1,5 @@
 export type TranscriptStatus = 'pending' | 'processing' | 'done' | 'error';
+export type BatchStatus = 'pending' | 'processing' | 'done' | 'error';
 export type BriefStatus = 'pending' | 'processing' | 'done' | 'error';
 
 export interface CallBrief {
@@ -18,6 +19,23 @@ export interface Segment {
   end: number;
   speaker: string;
   text: string;
+}
+
+export interface CallBatch {
+  id: string;
+  name: string | null;
+  status: BatchStatus;
+  brief: CallBrief | null;
+  briefStatus: BriefStatus | null;
+  rubricId: string | null;
+  rubricResult: string | null;
+  rubricStatus: BriefStatus | null;
+  userId: string | null;
+  uploaderName: string | null;
+  model: string | null;
+  createdAt: string;
+  updatedAt: string;
+  transcripts?: Transcript[];
 }
 
 export interface Transcript {
@@ -40,6 +58,8 @@ export interface Transcript {
   rubricId: string | null;
   rubricResult: string | null;
   rubricStatus: BriefStatus | null;
+  batchId: string | null;
+  batchOrder: number | null;
 }
 
 export interface Rubric {
@@ -60,4 +80,9 @@ export interface ProgressEvent {
   message: string;
   transcriptId?: string;
   error?: string;
+  // Batch-specific fields
+  callIndex?: number;
+  callCount?: number;
+  batchDone?: boolean;
+  batchId?: string;
 }

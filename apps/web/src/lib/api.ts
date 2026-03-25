@@ -32,6 +32,25 @@ export interface Segment {
   text: string;
 }
 
+export type BatchStatus = 'pending' | 'processing' | 'done' | 'error';
+
+export interface CallBatch {
+  id: string;
+  name: string | null;
+  status: BatchStatus;
+  brief: CallBrief | null;
+  briefStatus: BriefStatus | null;
+  rubricId: string | null;
+  rubricResult: string | null;
+  rubricStatus: BriefStatus | null;
+  userId: string | null;
+  uploaderName: string | null;
+  model: string | null;
+  createdAt: string;
+  updatedAt: string;
+  transcripts?: Transcript[];
+}
+
 export interface Transcript {
   id: string;
   originalFilename: string;
@@ -52,6 +71,8 @@ export interface Transcript {
   rubricId: string | null;
   rubricResult: string | null;
   rubricStatus: BriefStatus | null;
+  batchId: string | null;
+  batchOrder: number | null;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -145,5 +166,37 @@ export const api = {
   async deleteRubric(id: string): Promise<void> {
     const res = await fetch(`${BASE}/rubrics/${id}`, { method: 'DELETE' });
     return handleResponse<void>(res);
+  },
+
+  async startBatch(formData: FormData): Promise<{ id: string }> {
+    const res = await fetch(`${BASE}/batches`, {
+      method: 'POST',
+      body: formData,
+    });
+    return handleResponse<{ id: string }>(res);
+  },
+
+  async getBatches(): Promise<CallBatch[]> {
+    const res = await fetch(`${BASE}/batches`);
+    return handleResponse<CallBatch[]>(res);
+  },
+
+  async getBatch(id: string): Promise<CallBatch> {
+    const res = await fetch(`${BASE}/batches/${id}`);
+    return handleResponse<CallBatch>(res);
+  },
+
+  async generateBatchBrief(batchId: string): Promise<{ status: string }> {
+    const res = await fetch(`${BASE}/batches/${batchId}/brief`, { method: 'POST' });
+    return handleResponse<{ status: string }>(res);
+  },
+
+  async runBatchRubricAnalysis(batchId: string, rubricId: string): Promise<{ status: string }> {
+    const res = await fetch(`${BASE}/batches/${batchId}/rubric`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rubricId }),
+    });
+    return handleResponse<{ status: string }>(res);
   },
 };

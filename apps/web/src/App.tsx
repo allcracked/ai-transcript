@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Routes, Route, Navigate, NavLink, Outlet, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Mic, LogOut } from 'lucide-react';
 import { authClient } from './lib/auth-client';
 import { LoginPage } from './components/LoginPage';
 import { UploadForm } from './components/UploadForm';
 import { ProcessingStatus } from './components/ProcessingStatus';
+import { BatchProcessingStatus } from './components/BatchProcessingStatus';
+import { BatchView } from './components/BatchView';
 import { TranscriptView } from './components/TranscriptView';
 import { HistoryList } from './components/HistoryList';
 import { AdminPanel } from './components/AdminPanel';
@@ -18,10 +21,11 @@ function AppLayout() {
   const location = useLocation();
   const isAdmin = (session?.user as { role?: string })?.role === 'admin';
 
-  // Hide tabs on transcript and processing pages
+  // Hide tabs on transcript, processing, and batch pages
   const hideTabs =
     location.pathname.startsWith('/transcript/') ||
-    location.pathname.startsWith('/processing/');
+    location.pathname.startsWith('/processing/') ||
+    location.pathname.startsWith('/batch/');
 
   const handleSignOut = () => authClient.signOut();
 
@@ -102,10 +106,13 @@ function NewTranscriptPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-zinc-100">New Transcript</h2>
         <p className="text-sm text-zinc-400 mt-1">
-          Upload an audio recording to transcribe and identify speakers.
+          Upload one audio file, or up to 5 for a callback batch.
         </p>
       </div>
-      <UploadForm onJobStarted={(id) => navigate(`/processing/${id}`)} />
+      <UploadForm
+        onJobStarted={(id) => navigate(`/processing/${id}`)}
+        onBatchStarted={(id) => navigate(`/batch/${id}/processing`)}
+      />
     </div>
   );
 }
@@ -127,6 +134,45 @@ function ProcessingPage() {
         onComplete={(id) => navigate(`/transcript/${id}`, { replace: true })}
         onError={() => navigate('/new', { replace: true })}
       />
+    </div>
+  );
+}
+
+function BatchProcessingPage() {
+  const navigate = useNavigate();
+  const { batchId } = useParams<{ batchId: string }>();
+  // We store filenames in sessionStorage so the processing screen can show them
+  const [filenames] = useState<string[]>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(`batch-filenames-${batchId}`) || '[]') as string[];
+    } catch {
+      return [];
+    }
+  });
+
+  return (
+    <div className="space-y-2">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-zinc-100">Processing Batch…</h2>
+        <p className="text-sm text-zinc-400 mt-1">
+          Calls are being processed one at a time. This may take several minutes.
+        </p>
+      </div>
+      <BatchProcessingStatus
+        batchId={batchId!}
+        filenames={filenames}
+        onComplete={(id) => navigate(`/batch/${id}`, { replace: true })}
+        onError={() => navigate('/new', { replace: true })}
+      />
+    </div>
+  );
+}
+
+function BatchViewPage() {
+  const { batchId } = useParams<{ batchId: string }>();
+  return (
+    <div className="space-y-2">
+      <BatchView batchId={batchId!} />
     </div>
   );
 }
@@ -190,6 +236,8 @@ export default function App() {
         <Route path="/new" element={<NewTranscriptPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/processing/:jobId" element={<ProcessingPage />} />
+        <Route path="/batch/:batchId/processing" element={<BatchProcessingPage />} />
+        <Route path="/batch/:batchId" element={<BatchViewPage />} />
         <Route path="/transcript/:id" element={<TranscriptView />} />
         <Route path="/rubrics" element={<RubricsPage />} />
         <Route path="/admin" element={<AdminPage />} />
