@@ -58,14 +58,15 @@ router.post('/', upload.single('file'), (req: Request, res: Response) => {
     const language = (req.body.language as string) || null;
     const numSpeakersRaw = parseInt(req.body.numSpeakers as string, 10);
     const numSpeakers = isNaN(numSpeakersRaw) ? 0 : numSpeakersRaw;
+    const rubricId = (req.body.rubricId as string) || null;
 
     const id = uuidv4();
     const now = new Date().toISOString();
     const userId = (req as AuthRequest).currentUser.id;
 
     db.prepare(`
-      INSERT INTO transcripts (id, original_filename, file_path, status, mode, model, language, num_speakers, segments, created_at, updated_at, error_message, user_id)
-      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, NULL, ?, ?, NULL, ?)
+      INSERT INTO transcripts (id, original_filename, file_path, status, mode, model, language, num_speakers, segments, created_at, updated_at, error_message, user_id, rubric_id)
+      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, NULL, ?, ?, NULL, ?, ?)
     `).run(
       id,
       req.file.originalname,
@@ -76,7 +77,8 @@ router.post('/', upload.single('file'), (req: Request, res: Response) => {
       numSpeakers,
       now,
       now,
-      userId
+      userId,
+      rubricId
     );
 
     enforceStorageLimit();

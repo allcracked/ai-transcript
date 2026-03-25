@@ -1,6 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, FileAudio } from 'lucide-react';
-import { api } from '../lib/api';
+import { api, Rubric } from '../lib/api';
 import { Button } from './ui/button';
 import { Select } from './ui/select';
 import { cn } from '../lib/utils';
@@ -15,10 +15,16 @@ export function UploadForm({ onJobStarted }: UploadFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState('auto');
   const [numSpeakers, setNumSpeakers] = useState(0);
+  const [rubricId, setRubricId] = useState('');
+  const [rubrics, setRubrics] = useState<Rubric[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.getRubrics().then(setRubrics).catch(() => {});
+  }, []);
 
   const handleFileChange = (newFile: File) => {
     setFile(newFile);
@@ -58,6 +64,7 @@ export function UploadForm({ onJobStarted }: UploadFormProps) {
       formData.append('model', 'universal-2');
       formData.append('language', language);
       formData.append('numSpeakers', String(numSpeakers));
+      if (rubricId) formData.append('rubricId', rubricId);
 
       const { id } = await api.startJob(formData);
       onJobStarted(id);
@@ -135,6 +142,20 @@ export function UploadForm({ onJobStarted }: UploadFormProps) {
           <option value="en">English</option>
           <option value="es">Spanish</option>
         </Select>
+
+        {/* Rubric selector */}
+        {rubrics.length > 0 && (
+          <Select
+            label="Analysis Rubric"
+            value={rubricId}
+            onChange={(e) => setRubricId(e.target.value)}
+          >
+            <option value="">None</option>
+            {rubrics.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </Select>
+        )}
 
         {/* Num speakers */}
         <Select

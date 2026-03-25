@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw, Sparkles, RefreshCw, Calendar, Wrench, UserCheck, CheckCircle2, XCircle, HelpCircle, Scissors } from 'lucide-react';
-import { api, Transcript, Segment, CallBrief } from '../lib/api';
+import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw, Sparkles, RefreshCw, Calendar, Wrench, UserCheck, CheckCircle2, XCircle, HelpCircle, Scissors, GripHorizontal } from 'lucide-react';
+import { api, Transcript, Segment, CallBrief, Rubric } from '../lib/api';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 function formatTimestamp(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -108,6 +110,18 @@ export function TranscriptView() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState(false);
 
+  // Rubric analysis state
+  const [rubrics, setRubrics] = useState<Rubric[]>([]);
+  const [selectedRubricId, setSelectedRubricId] = useState('');
+  const [rubricId, setRubricId] = useState<string | null>(null);
+  const [rubricResult, setRubricResult] = useState<string | null>(null);
+  const [rubricStatus, setRubricStatus] = useState<string | null>(null);
+  const [rubricOpen, setRubricOpen] = useState(false);
+  const rubricPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Floating window drag state
+  const [floatPos, setFloatPos] = useState({ x: 40, y: 120 });
+  const dragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
+
   // Snippet export state
   const [selectedSegments, setSelectedSegments] = useState<Set<number>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
@@ -135,6 +149,11 @@ export function TranscriptView() {
         setBrief(t.brief);
         setBriefStatus(t.briefStatus);
         if (t.brief) setBriefOpen(true);
+        setRubricId(t.rubricId);
+        setRubricResult(t.rubricResult);
+        setRubricStatus(t.rubricStatus);
+        if (t.rubricResult) setRubricOpen(true);
+        if (t.rubricId) setSelectedRubricId(t.rubricId);
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load transcript');
@@ -164,13 +183,21 @@ export function TranscriptView() {
     };
   }, [briefStatus, transcriptId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset audio state when transcript changes
+  // Reset audio + rubric state when transcript changes
   useEffect(() => {
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(false);
     setAudioError(false);
     setAutoScroll(true);
+    setRubricId(null);
+    setRubricResult(null);
+    setRubricStatus(null);
+    setRubricOpen(false);
+    setSelectedRubricId('');
+    setBrief(null);
+    setBriefStatus(null);
+    setBriefOpen(false);
   }, [transcriptId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Active segment: last one whose start <= currentTime
@@ -321,6 +348,17 @@ export function TranscriptView() {
     }
   }, [transcript, selectedSegments]);
 
+  const handleRunRubric = useCallback(async (rid: string) => {
+    if (!transcriptId || !rid) return;
+    setRubricStatus('processing');
+    setSelectedRubricId(rid);
+    try {
+      await api.runRubricAnalysis(transcriptId, rid);
+    } catch {
+      setRubricStatus('error');
+    }
+  }, [transcriptId]);
+
   const handleGenerateBrief = useCallback(async () => {
     if (!transcriptId) return;
     setBriefStatus('processing');
@@ -330,6 +368,30 @@ export function TranscriptView() {
       setBriefStatus('error');
     }
   }, [transcriptId]);
+
+  // Fetch rubrics list once
+  useEffect(() => {
+    api.getRubrics().then(setRubrics).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll for rubric analysis while processing
+  useEffect(() => {
+    if (rubricStatus === 'processing' || rubricStatus === 'pending') {
+      rubricPollRef.current = setInterval(async () => {
+        try {
+          const t = await api.getTranscript(transcriptId!);
+          setRubricId(t.rubricId);
+          setRubricResult(t.rubricResult);
+          setRubricStatus(t.rubricStatus);
+          if (t.rubricStatus !== 'processing' && t.rubricStatus !== 'pending') {
+            clearInterval(rubricPollRef.current!);
+            if (t.rubricResult) setRubricOpen(true);
+          }
+        } catch { /* ignore */ }
+      }, 3000);
+    }
+    return () => { if (rubricPollRef.current) clearInterval(rubricPollRef.current); };
+  }, [rubricStatus, transcriptId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep bottom padding in sync with the bar's actual height
   useEffect(() => {
@@ -420,7 +482,7 @@ export function TranscriptView() {
             </div>
           </div>
 
-          {/* Row 2: action buttons left-aligned */}
+          {/* Row 2: transcript action buttons */}
           {transcript.segments && transcript.segments.length > 0 && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleCopy}>
@@ -492,7 +554,59 @@ export function TranscriptView() {
               )}
             </div>
           )}
+
+          {/* Row 3: rubric analysis */}
+          {transcript.status === 'done' && rubrics.length > 0 && (
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedRubricId}
+                onChange={(e) => setSelectedRubricId(e.target.value)}
+                className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Select rubric…</option>
+                {rubrics.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!selectedRubricId || rubricStatus === 'processing' || rubricStatus === 'pending'}
+                onClick={() => {
+                  if (selectedRubricId) {
+                    handleRunRubric(selectedRubricId);
+                    setRubricOpen(true);
+                  }
+                }}
+                className={cn(
+                  'relative',
+                  rubricOpen && rubricResult ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : ''
+                )}
+              >
+                {rubricStatus === 'processing' || rubricStatus === 'pending' ? (
+                  <svg className="h-3.5 w-3.5 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Analyse
+              </Button>
+              {rubricResult && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRubricOpen((v) => !v)}
+                  className="text-zinc-500"
+                >
+                  {rubricOpen ? 'Hide' : 'Show'} result
+                </Button>
+              )}
+            </div>
+          )}
         </div>
+
 
         {/* Segments */}
         {!transcript.segments || transcript.segments.length === 0 ? (
@@ -717,6 +831,93 @@ export function TranscriptView() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rubric analysis floating window */}
+      {rubricOpen && (rubricResult || rubricStatus === 'processing' || rubricStatus === 'pending' || rubricStatus === 'error') && (
+        <div
+          style={{ left: floatPos.x, top: floatPos.y }}
+          className="fixed z-50 w-[480px] max-w-[calc(100vw-2rem)] max-h-[70vh] flex flex-col rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/60"
+        >
+          {/* Drag handle / header */}
+          <div
+            className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-zinc-800 cursor-grab active:cursor-grabbing select-none rounded-t-xl bg-zinc-900"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              dragRef.current = { startX: e.clientX, startY: e.clientY, startPosX: floatPos.x, startPosY: floatPos.y };
+              const onMove = (ev: MouseEvent) => {
+                if (!dragRef.current) return;
+                const nx = dragRef.current.startPosX + ev.clientX - dragRef.current.startX;
+                const ny = dragRef.current.startPosY + ev.clientY - dragRef.current.startY;
+                setFloatPos({ x: Math.max(0, nx), y: Math.max(0, ny) });
+              };
+              const onUp = () => {
+                dragRef.current = null;
+                window.removeEventListener('mousemove', onMove);
+                window.removeEventListener('mouseup', onUp);
+              };
+              window.addEventListener('mousemove', onMove);
+              window.addEventListener('mouseup', onUp);
+            }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <GripHorizontal className="h-3.5 w-3.5 text-zinc-600 flex-shrink-0" />
+              <Sparkles className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+              <span className="text-sm font-medium text-zinc-100 truncate">
+                {rubrics.find((r) => r.id === rubricId)?.name ?? 'Rubric Analysis'}
+              </span>
+              <Badge variant="secondary" className="text-xs flex-shrink-0">AI</Badge>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {rubricStatus === 'done' && (
+                <button
+                  onClick={() => selectedRubricId && handleRunRubric(selectedRubricId)}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                  title="Re-run analysis"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Re-run
+                </button>
+              )}
+              <button
+                onClick={() => setRubricOpen(false)}
+                className="rounded-md p-1 text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+              >
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="overflow-y-auto px-4 py-3 flex-1">
+            {(rubricStatus === 'processing' || rubricStatus === 'pending') ? (
+              <div className="flex items-center gap-2 text-sm text-zinc-500 py-2">
+                <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Running analysis…
+              </div>
+            ) : rubricStatus === 'error' ? (
+              <p className="text-sm text-red-400 py-2">Analysis failed. Try re-running.</p>
+            ) : rubricResult ? (
+              <div className="prose prose-sm prose-invert max-w-none
+                prose-headings:text-zinc-100 prose-headings:font-semibold
+                prose-p:text-zinc-300 prose-p:leading-relaxed
+                prose-strong:text-zinc-100
+                prose-em:text-zinc-300
+                prose-li:text-zinc-300
+                prose-code:text-blue-300 prose-code:bg-zinc-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
+                prose-pre:bg-zinc-800 prose-pre:border prose-pre:border-zinc-700
+                prose-blockquote:border-l-blue-500 prose-blockquote:text-zinc-400
+                prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
+                prose-hr:border-zinc-700
+                prose-table:text-sm prose-th:text-zinc-300 prose-td:text-zinc-400">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{rubricResult}</ReactMarkdown>
+              </div>
+            ) : null}
           </div>
         </div>
       )}

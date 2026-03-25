@@ -7,6 +7,7 @@ import { ProcessingStatus } from './components/ProcessingStatus';
 import { TranscriptView } from './components/TranscriptView';
 import { HistoryList } from './components/HistoryList';
 import { AdminPanel } from './components/AdminPanel';
+import { RubricsPage } from './components/RubricsPage';
 import { api } from './lib/api';
 import { cn } from './lib/utils';
 
@@ -63,6 +64,7 @@ function AppLayout() {
             {[
               { to: '/new', label: 'New Transcript' },
               { to: '/history', label: 'History' },
+              { to: '/rubrics', label: 'Rubrics' },
               ...(isAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
             ].map(({ to, label }) => (
               <NavLink
@@ -189,6 +191,7 @@ export default function App() {
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/processing/:jobId" element={<ProcessingPage />} />
         <Route path="/transcript/:id" element={<TranscriptView />} />
+        <Route path="/rubrics" element={<RubricsPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/new" replace />} />
       </Route>

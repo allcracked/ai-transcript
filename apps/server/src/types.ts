@@ -37,6 +37,19 @@ export interface Transcript {
   uploaderName: string | null;
   brief: CallBrief | null;
   briefStatus: BriefStatus | null;
+  rubricId: string | null;
+  rubricResult: string | null;
+  rubricStatus: BriefStatus | null;
+}
+
+export interface Rubric {
+  id: string;
+  name: string;
+  description: string | null;
+  prompt: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ProgressStep = 'uploading' | 'transcribing' | 'diarizing' | 'aligning' | 'saving' | 'done' | 'error';

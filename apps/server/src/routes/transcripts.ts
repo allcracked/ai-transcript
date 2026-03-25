@@ -5,6 +5,7 @@ import db from '../db';
 import { Transcript, Segment, CallBrief } from '../types';
 import { AuthRequest } from '../middleware/auth';
 import { generateBrief } from '../services/brief';
+import { runRubricAnalysis } from '../services/rubric-analysis';
 
 interface DbRow {
   id: string;
@@ -23,6 +24,9 @@ interface DbRow {
   uploader_name: string | null;
   brief: string | null;
   brief_status: string | null;
+  rubric_id: string | null;
+  rubric_result: string | null;
+  rubric_status: string | null;
 }
 
 function rowToTranscript(row: DbRow): Transcript {
@@ -44,6 +48,9 @@ function rowToTranscript(row: DbRow): Transcript {
     uploaderName: row.uploader_name ?? null,
     brief: row.brief ? (JSON.parse(row.brief) as CallBrief) : null,
     briefStatus: (row.brief_status ?? null) as Transcript['briefStatus'],
+    rubricId: row.rubric_id ?? null,
+    rubricResult: row.rubric_result ?? null,
+    rubricStatus: (row.rubric_status ?? null) as Transcript['rubricStatus'],
   };
 }
 
@@ -155,6 +162,48 @@ router.post('/:id/brief', async (req: Request, res: Response) => {
     res.json({ status: 'processing' });
   } catch (err) {
     console.error('Error triggering brief generation:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+router.post('/:id/rubric', async (req: Request, res: Response) => {
+  try {
+    const { currentUser } = req as AuthRequest;
+    const { rubricId } = req.body as { rubricId?: string };
+
+    if (!rubricId) {
+      res.status(400).json({ error: 'rubricId is required' });
+      return;
+    }
+
+    const row = db
+      .prepare('SELECT id, user_id, status, rubric_status FROM transcripts WHERE id = ?')
+      .get(req.params.id) as { id: string; user_id: string | null; status: string; rubric_status: string | null } | undefined;
+
+    if (!row) {
+      res.status(404).json({ error: 'Transcript not found' });
+      return;
+    }
+    if (currentUser.role !== 'admin' && row.user_id !== currentUser.id) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    if (row.status !== 'done') {
+      res.status(400).json({ error: 'Transcript is not yet complete' });
+      return;
+    }
+    if (row.rubric_status === 'processing') {
+      res.status(409).json({ error: 'Rubric analysis is already running' });
+      return;
+    }
+
+    runRubricAnalysis(row.id, rubricId).catch((err) =>
+      console.error('[RUBRIC] Manual analysis error:', err)
+    );
+
+    res.json({ status: 'processing' });
+  } catch (err) {
+    console.error('Error triggering rubric analysis:', err);
     res.status(500).json({ error: String(err) });
   }
 });

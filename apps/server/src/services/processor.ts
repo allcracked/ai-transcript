@@ -5,6 +5,7 @@ import { diarize, transcribeAndDiarize } from './diarize';
 import { diarizeWithPyannote } from './diarize-pyannote';
 import { align } from './align';
 import { generateBrief } from './brief';
+import { runRubricAnalysis } from './rubric-analysis';
 
 interface DbRow {
   id: string;
@@ -19,6 +20,7 @@ interface DbRow {
   created_at: string;
   updated_at: string;
   error_message: string | null;
+  rubric_id: string | null;
 }
 
 export async function processJob(
@@ -251,6 +253,13 @@ export async function processJob(
     generateBrief(transcriptId).catch((err) =>
       console.error('[BRIEF] Background generation error:', err)
     );
+
+    // Auto-run rubric analysis if one was selected at upload time
+    if (row.rubric_id) {
+      runRubricAnalysis(transcriptId, row.rubric_id).catch((err) =>
+        console.error('[RUBRIC] Background analysis error:', err)
+      );
+    }
   } catch (err) {
     const errorMessage = String(err instanceof Error ? err.message : err);
     console.error(`[PROCESSOR] ✗ Job failed: ${transcriptId} — ${errorMessage}`);

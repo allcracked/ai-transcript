@@ -51,6 +51,19 @@ db.exec(`
   )
 `);
 
+// Rubrics table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rubrics (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    prompt TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`);
+
 // Add user_id column to transcripts if it doesn't exist
 const transcriptCols = db.prepare(`PRAGMA table_info(transcripts)`).all() as { name: string }[];
 if (!transcriptCols.find((c) => c.name === 'user_id')) {
@@ -61,6 +74,15 @@ if (!transcriptCols.find((c) => c.name === 'brief')) {
 }
 if (!transcriptCols.find((c) => c.name === 'brief_status')) {
   db.exec(`ALTER TABLE transcripts ADD COLUMN brief_status TEXT`);
+}
+if (!transcriptCols.find((c) => c.name === 'rubric_id')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN rubric_id TEXT`);
+}
+if (!transcriptCols.find((c) => c.name === 'rubric_result')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN rubric_result TEXT`);
+}
+if (!transcriptCols.find((c) => c.name === 'rubric_status')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN rubric_status TEXT`);
 }
 
 // Migration: make file_path nullable on existing databases

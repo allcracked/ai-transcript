@@ -4,6 +4,16 @@ export type TranscriptStatus = 'pending' | 'processing' | 'done' | 'error';
 export type TranscriptMode = 'assemblyai' | 'local' | 'api';
 export type BriefStatus = 'pending' | 'processing' | 'done' | 'error';
 
+export interface Rubric {
+  id: string;
+  name: string;
+  description: string | null;
+  prompt: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CallBrief {
   workType: string | null;
   workTypeTimestamp: number | null;
@@ -39,6 +49,9 @@ export interface Transcript {
   uploaderName: string | null;
   brief: CallBrief | null;
   briefStatus: BriefStatus | null;
+  rubricId: string | null;
+  rubricResult: string | null;
+  rubricStatus: BriefStatus | null;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -95,5 +108,42 @@ export const api = {
       method: 'POST',
     });
     return handleResponse<{ status: string }>(res);
+  },
+
+  async runRubricAnalysis(id: string, rubricId: string): Promise<{ status: string }> {
+    const res = await fetch(`${BASE}/transcripts/${id}/rubric`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rubricId }),
+    });
+    return handleResponse<{ status: string }>(res);
+  },
+
+  async getRubrics(): Promise<Rubric[]> {
+    const res = await fetch(`${BASE}/rubrics`);
+    return handleResponse<Rubric[]>(res);
+  },
+
+  async createRubric(data: { name: string; description?: string; prompt: string }): Promise<Rubric> {
+    const res = await fetch(`${BASE}/rubrics`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Rubric>(res);
+  },
+
+  async updateRubric(id: string, data: { name?: string; description?: string; prompt?: string }): Promise<Rubric> {
+    const res = await fetch(`${BASE}/rubrics/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Rubric>(res);
+  },
+
+  async deleteRubric(id: string): Promise<void> {
+    const res = await fetch(`${BASE}/rubrics/${id}`, { method: 'DELETE' });
+    return handleResponse<void>(res);
   },
 };

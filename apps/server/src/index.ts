@@ -12,6 +12,7 @@ import { requireAuth } from './middleware/auth';
 import jobsRouter from './routes/jobs';
 import transcriptsRouter from './routes/transcripts';
 import adminRouter from './routes/admin';
+import rubricsRouter from './routes/rubrics';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -53,6 +54,7 @@ app.use('/api', requireAuth);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/transcripts', transcriptsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/rubrics', rubricsRouter);
 
 // Serve React frontend (production build copied to dist/public by Dockerfile)
 const publicDir = path.join(__dirname, 'public');
