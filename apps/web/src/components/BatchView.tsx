@@ -556,7 +556,7 @@ export function BatchView({ batchId }: { batchId: string }) {
           </div>
 
           {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto pb-20">
 
             {/* ── Brief section ── */}
             {batch && batch.status === 'done' && (
@@ -664,11 +664,11 @@ export function BatchView({ batchId }: { batchId: string }) {
                 </button>
                 {analysisSectionOpen && (
                   <div className="px-4 pb-4 space-y-3">
-                    <div className="flex items-center gap-2">
+                    <div className="space-y-2">
                       <select
                         value={selectedRubricId}
                         onChange={(e) => setSelectedRubricId(e.target.value)}
-                        className="flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
                       >
                         <option value="">Select rubric…</option>
                         {rubrics.map((r) => (
@@ -678,7 +678,7 @@ export function BatchView({ batchId }: { batchId: string }) {
                       <button
                         disabled={!selectedRubricId || rubricStatus === 'processing' || rubricStatus === 'pending'}
                         onClick={() => selectedRubricId && handleRunRubric(selectedRubricId)}
-                        className="flex items-center gap-1.5 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         {rubricStatus === 'processing' || rubricStatus === 'pending' ? (
                           <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
