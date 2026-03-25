@@ -78,6 +78,31 @@ export function HistoryList({ onView, onReprocess, refreshTrigger }: HistoryList
     fetchAll();
   }, [refreshTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleDeleteBatch = async (batch: CallBatch) => {
+    const confirmed = window.confirm(
+      `Delete batch "${batch.name ?? 'Call Batch'}" and all its recordings? This cannot be undone.`
+    );
+    if (!confirmed) return;
+    setDeletingId(batch.id);
+    try {
+      await api.deleteBatch(batch.id);
+      setEntries((prev) => prev.filter((e) => !(e.kind === 'batch' && e.data.id === batch.id)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete batch');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleReprocessBatch = async (batch: CallBatch) => {
+    try {
+      const { id } = await api.reprocessBatch(batch.id);
+      navigate(`/batch/${id}/processing`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to start reprocessing');
+    }
+  };
+
   const handleDeleteTranscript = async (transcript: Transcript) => {
     const confirmed = window.confirm(
       `Delete transcript for "${transcript.originalFilename}"? This cannot be undone.`
@@ -243,6 +268,26 @@ export function HistoryList({ onView, onReprocess, refreshTrigger }: HistoryList
                       View
                     </Button>
                   )}
+                  <Button variant="ghost" size="sm" onClick={() => handleReprocessBatch(b)} title="Re-process">
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteBatch(b)}
+                    disabled={deletingId === b.id}
+                    className={cn('text-zinc-500 hover:text-red-400 hover:bg-red-500/10')}
+                    title="Delete"
+                  >
+                    {deletingId === b.id ? (
+                      <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
                 </div>
               </div>
             </div>

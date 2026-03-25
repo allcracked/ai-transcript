@@ -199,4 +199,14 @@ export const api = {
     });
     return handleResponse<{ status: string }>(res);
   },
+
+  async reprocessBatch(id: string): Promise<{ id: string }> {
+    const res = await fetch(`${BASE}/batches/${id}/reprocess`, { method: 'POST' });
+    return handleResponse<{ id: string }>(res);
+  },
+
+  async deleteBatch(id: string): Promise<void> {
+    const res = await fetch(`${BASE}/batches/${id}`, { method: 'DELETE' });
+    return handleResponse<void>(res);
+  },
 };

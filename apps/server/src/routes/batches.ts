@@ -441,4 +441,58 @@ router.post('/:id/rubric', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/batches/:id/reprocess — reset batch and all its transcripts back to pending
+router.post('/:id/reprocess', (req: Request, res: Response) => {
+  try {
+    const { currentUser } = req as AuthRequest;
+    const row = db.prepare('SELECT id, user_id FROM call_batches WHERE id = ?')
+      .get(req.params.id) as { id: string; user_id: string | null } | undefined;
+
+    if (!row) { res.status(404).json({ error: 'Batch not found' }); return; }
+    if (currentUser.role !== 'admin' && row.user_id !== currentUser.id) { res.status(403).json({ error: 'Access denied' }); return; }
+
+    const now = new Date().toISOString();
+    db.prepare(
+      `UPDATE call_batches SET status = 'pending', combined_analysis = NULL, combined_analysis_status = NULL,
+       rubric_result = NULL, rubric_status = NULL, updated_at = ? WHERE id = ?`
+    ).run(now, row.id);
+    db.prepare(
+      `UPDATE transcripts SET status = 'pending', segments = NULL, error_message = NULL,
+       brief = NULL, brief_status = NULL, rubric_result = NULL, rubric_status = NULL, updated_at = ? WHERE batch_id = ?`
+    ).run(now, row.id);
+
+    res.json({ id: row.id });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// DELETE /api/batches/:id — delete a batch, its transcripts, and uploaded audio files
+router.delete('/:id', (req: Request, res: Response) => {
+  try {
+    const { currentUser } = req as AuthRequest;
+    const row = db.prepare('SELECT id, user_id FROM call_batches WHERE id = ?')
+      .get(req.params.id) as { id: string; user_id: string | null } | undefined;
+
+    if (!row) { res.status(404).json({ error: 'Batch not found' }); return; }
+    if (currentUser.role !== 'admin' && row.user_id !== currentUser.id) { res.status(403).json({ error: 'Access denied' }); return; }
+
+    const transcriptFiles = db.prepare('SELECT file_path FROM transcripts WHERE batch_id = ?')
+      .all(row.id) as { file_path: string | null }[];
+
+    db.prepare('DELETE FROM transcripts WHERE batch_id = ?').run(row.id);
+    db.prepare('DELETE FROM call_batches WHERE id = ?').run(row.id);
+
+    for (const { file_path } of transcriptFiles) {
+      if (file_path && fs.existsSync(file_path)) {
+        try { fs.unlinkSync(file_path); } catch { /* ignore */ }
+      }
+    }
+
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 export default router;
