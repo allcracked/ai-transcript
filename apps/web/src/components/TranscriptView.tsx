@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw, Sparkles, RefreshCw, Calendar, Wrench, UserCheck, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw, Sparkles, RefreshCw, Calendar, Wrench, UserCheck, CheckCircle2, XCircle, HelpCircle, Scissors } from 'lucide-react';
 import { api, Transcript, Segment, CallBrief } from '../lib/api';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -107,6 +107,10 @@ export function TranscriptView() {
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState(false);
+
+  // Snippet export state
+  const [selectedSegments, setSelectedSegments] = useState<Set<number>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
 
   // Brief state
   const [brief, setBrief] = useState<CallBrief | null>(null);
@@ -244,6 +248,79 @@ export function TranscriptView() {
     audioRef.current.play();
   }, []);
 
+  const toggleSegmentSelection = useCallback((idx: number) => {
+    setSelectedSegments((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }, []);
+
+  const handleExportSnippet = useCallback(async () => {
+    if (!transcript?.segments || !transcript.audioUrl || selectedSegments.size === 0) return;
+    setIsExporting(true);
+    try {
+      const selected = [...selectedSegments].map((i) => transcript.segments![i]);
+      const startTime = Math.min(...selected.map((s) => s.start));
+      const endTime = Math.max(...selected.map((s) => s.end));
+
+      const response = await fetch(transcript.audioUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioCtx = new AudioContext();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+      const sampleRate = audioBuffer.sampleRate;
+      const startSample = Math.floor(startTime * sampleRate);
+      const endSample = Math.floor(endTime * sampleRate);
+      const channels = audioBuffer.numberOfChannels;
+
+      const leftFloat = audioBuffer.getChannelData(0).slice(startSample, endSample);
+      const rightFloat = channels > 1
+        ? audioBuffer.getChannelData(1).slice(startSample, endSample)
+        : leftFloat;
+
+      const toInt16 = (f32: Float32Array): Int16Array => {
+        const i16 = new Int16Array(f32.length);
+        for (let i = 0; i < f32.length; i++) {
+          const s = Math.max(-1, Math.min(1, f32[i]));
+          i16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+        return i16;
+      };
+
+      const { Mp3Encoder } = await import('@breezystack/lamejs');
+      const encoder = new Mp3Encoder(channels, sampleRate, 128);
+      const mp3Chunks: Uint8Array[] = [];
+      const CHUNK = 1152;
+      const leftInt16 = toInt16(leftFloat);
+      const rightInt16 = toInt16(rightFloat);
+
+      for (let i = 0; i < leftInt16.length; i += CHUNK) {
+        const l = leftInt16.subarray(i, i + CHUNK);
+        const r = rightInt16.subarray(i, i + CHUNK);
+        const buf = channels > 1 ? encoder.encodeBuffer(l, r) : encoder.encodeBuffer(l);
+        if (buf.length > 0) mp3Chunks.push(buf);
+      }
+      const tail = encoder.flush();
+      if (tail.length > 0) mp3Chunks.push(tail);
+
+      const blob = new Blob(mp3Chunks as BlobPart[], { type: 'audio/mp3' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const baseName = transcript.originalFilename.replace(/\.[^.]+$/, '');
+      a.download = `${baseName}_${formatPlayerTime(startTime)}-${formatPlayerTime(endTime)}.mp3`;
+      a.click();
+      URL.revokeObjectURL(url);
+      await audioCtx.close();
+    } catch (err) {
+      console.error('Snippet export failed:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [transcript, selectedSegments]);
+
   const handleGenerateBrief = useCallback(async () => {
     if (!transcriptId) return;
     setBriefStatus('processing');
@@ -363,6 +440,30 @@ export function TranscriptView() {
                 <Download className="mr-1.5 h-3.5 w-3.5" />
                 Download
               </Button>
+              {hasAudio && selectedSegments.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportSnippet}
+                  disabled={isExporting}
+                  className="text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+                >
+                  {isExporting ? (
+                    <>
+                      <svg className="mr-1.5 h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Exporting…
+                    </>
+                  ) : (
+                    <>
+                      <Scissors className="mr-1.5 h-3.5 w-3.5" />
+                      Export Snippet ({selectedSegments.size})
+                    </>
+                  )}
+                </Button>
+              )}
               {transcript.status === 'done' && (
                 <Button
                   variant="outline"
@@ -404,37 +505,59 @@ export function TranscriptView() {
               const colorIdx = getSpeakerColorIndex(seg.speaker);
               const colorClass = SPEAKER_COLORS[colorIdx];
               const isActive = hasAudio && idx === activeIdx;
+              const isSelected = selectedSegments.has(idx);
 
               return (
                 <div
                   key={idx}
                   ref={(el) => { segmentRefs.current[idx] = el; }}
-                  onClick={() => hasAudio && handleSegmentClick(seg.start)}
                   className={cn(
                     'rounded-xl border p-4 space-y-2 transition-colors duration-150',
-                    hasAudio && 'cursor-pointer',
-                    isActive
+                    isSelected
+                      ? 'border-blue-500/40 bg-blue-500/5'
+                      : isActive
                       ? 'border-blue-500/50 bg-blue-500/5'
                       : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
                   )}
                 >
                   <div className="flex items-center gap-3">
+                    {/* Checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSegmentSelection(idx)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-3.5 w-3.5 flex-shrink-0 rounded accent-blue-500 cursor-pointer"
+                    />
                     <span
+                      onClick={() => hasAudio && handleSegmentClick(seg.start)}
                       className={cn(
                         'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                        hasAudio && 'cursor-pointer',
                         colorClass
                       )}
                     >
                       {seg.speaker}
                     </span>
-                    <span className="text-xs text-zinc-300 font-mono bg-zinc-800 px-2 py-0.5 rounded-md">
+                    <span
+                      onClick={() => hasAudio && handleSegmentClick(seg.start)}
+                      className={cn(
+                        'text-xs text-zinc-300 font-mono bg-zinc-800 px-2 py-0.5 rounded-md',
+                        hasAudio && 'cursor-pointer'
+                      )}
+                    >
                       {formatTimestamp(seg.start)} → {formatTimestamp(seg.end)}
                     </span>
                     {isActive && (
                       <span className="ml-auto flex h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
                     )}
                   </div>
-                  <p className="text-sm leading-relaxed text-zinc-200">{seg.text}</p>
+                  <p
+                    onClick={() => hasAudio && handleSegmentClick(seg.start)}
+                    className={cn('text-sm leading-relaxed text-zinc-200', hasAudio && 'cursor-pointer')}
+                  >
+                    {seg.text}
+                  </p>
                 </div>
               );
             })}
