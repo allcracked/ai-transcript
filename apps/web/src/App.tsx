@@ -62,7 +62,7 @@ function AppLayout() {
       </header>
 
       {/* Main */}
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className={cn('mx-auto px-4 py-8', hideTabs ? 'w-full' : 'max-w-3xl')}>
         {!hideTabs && (
           <div className="mb-6 flex rounded-lg border border-zinc-800 bg-zinc-900 p-1 w-fit">
             {[

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw, Sparkles, RefreshCw, Calendar, Wrench, UserCheck, CheckCircle2, XCircle, HelpCircle, Scissors, GripHorizontal } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw, Sparkles, RefreshCw, Calendar, Wrench, UserCheck, CheckCircle2, XCircle, HelpCircle, Scissors, X, ChevronDown } from 'lucide-react';
 import { api, Transcript, Segment, CallBrief, Rubric } from '../lib/api';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -113,14 +113,12 @@ export function TranscriptView() {
   // Rubric analysis state
   const [rubrics, setRubrics] = useState<Rubric[]>([]);
   const [selectedRubricId, setSelectedRubricId] = useState('');
-  const [rubricId, setRubricId] = useState<string | null>(null);
   const [rubricResult, setRubricResult] = useState<string | null>(null);
   const [rubricStatus, setRubricStatus] = useState<string | null>(null);
-  const [rubricOpen, setRubricOpen] = useState(false);
   const rubricPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Floating window drag state
-  const [floatPos, setFloatPos] = useState({ x: 40, y: 120 });
-  const dragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [briefSectionOpen, setBriefSectionOpen] = useState(true);
+  const [analysisSectionOpen, setAnalysisSectionOpen] = useState(true);
 
   // Snippet export state
   const [selectedSegments, setSelectedSegments] = useState<Set<number>>(new Set());
@@ -129,7 +127,6 @@ export function TranscriptView() {
   // Brief state
   const [brief, setBrief] = useState<CallBrief | null>(null);
   const [briefStatus, setBriefStatus] = useState<string | null>(null);
-  const [briefOpen, setBriefOpen] = useState(false);
   const briefPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bottomBarRef = useRef<HTMLDivElement>(null);
   const [bottomBarHeight, setBottomBarHeight] = useState(56);
@@ -148,11 +145,9 @@ export function TranscriptView() {
         setTranscript(t);
         setBrief(t.brief);
         setBriefStatus(t.briefStatus);
-        if (t.brief) setBriefOpen(true);
-        setRubricId(t.rubricId);
+        if (t.brief || t.rubricResult) setAiPanelOpen(true);
         setRubricResult(t.rubricResult);
         setRubricStatus(t.rubricStatus);
-        if (t.rubricResult) setRubricOpen(true);
         if (t.rubricId) setSelectedRubricId(t.rubricId);
       })
       .catch((err: unknown) => {
@@ -171,7 +166,7 @@ export function TranscriptView() {
           setBriefStatus(t.briefStatus);
           if (t.briefStatus !== 'processing' && t.briefStatus !== 'pending') {
             clearInterval(briefPollRef.current!);
-            if (t.brief) setBriefOpen(true);
+            if (t.brief) setAiPanelOpen(true);
           }
         } catch {
           // ignore polling errors
@@ -190,14 +185,12 @@ export function TranscriptView() {
     setIsPlaying(false);
     setAudioError(false);
     setAutoScroll(true);
-    setRubricId(null);
     setRubricResult(null);
     setRubricStatus(null);
-    setRubricOpen(false);
+    setAiPanelOpen(false);
     setSelectedRubricId('');
     setBrief(null);
     setBriefStatus(null);
-    setBriefOpen(false);
   }, [transcriptId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Active segment: last one whose start <= currentTime
@@ -380,12 +373,11 @@ export function TranscriptView() {
       rubricPollRef.current = setInterval(async () => {
         try {
           const t = await api.getTranscript(transcriptId!);
-          setRubricId(t.rubricId);
           setRubricResult(t.rubricResult);
           setRubricStatus(t.rubricStatus);
           if (t.rubricStatus !== 'processing' && t.rubricStatus !== 'pending') {
             clearInterval(rubricPollRef.current!);
-            if (t.rubricResult) setRubricOpen(true);
+            if (t.rubricResult) setAiPanelOpen(true);
           }
         } catch { /* ignore */ }
       }, 3000);
@@ -450,7 +442,10 @@ export function TranscriptView() {
         />
       )}
 
-      <div className="space-y-4" style={hasAudio ? { paddingBottom: bottomBarHeight + 16 } : undefined}>
+      <div className="space-y-4" style={{
+        ...(hasAudio ? { paddingBottom: bottomBarHeight + 16 } : {}),
+        ...(aiPanelOpen ? { paddingRight: '320px' } : {}),
+      }}>
         {/* Sticky toolbar */}
         <div className="sticky top-[69px] z-[9] -mx-6 px-6 pt-4 pb-4 bg-zinc-900 border-b border-zinc-800/80 space-y-3">
           {/* Row 1: left = back + filename/date, right = badges + uploader */}
@@ -526,83 +521,6 @@ export function TranscriptView() {
                   )}
                 </Button>
               )}
-              {transcript.status === 'done' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (!brief && briefStatus !== 'processing' && briefStatus !== 'pending') {
-                      handleGenerateBrief();
-                      setBriefOpen(true);
-                    } else {
-                      setBriefOpen((v) => !v);
-                    }
-                  }}
-                  className={cn(
-                    'relative',
-                    briefOpen && (brief || briefStatus)
-                      ? 'text-blue-400 border-blue-500/30 bg-blue-500/10'
-                      : ''
-                  )}
-                >
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                  Brief
-                  {(briefStatus === 'processing' || briefStatus === 'pending') && (
-                    <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                  )}
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Row 3: rubric analysis */}
-          {transcript.status === 'done' && rubrics.length > 0 && (
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedRubricId}
-                onChange={(e) => setSelectedRubricId(e.target.value)}
-                className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
-              >
-                <option value="">Select rubric…</option>
-                {rubrics.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </select>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!selectedRubricId || rubricStatus === 'processing' || rubricStatus === 'pending'}
-                onClick={() => {
-                  if (selectedRubricId) {
-                    handleRunRubric(selectedRubricId);
-                    setRubricOpen(true);
-                  }
-                }}
-                className={cn(
-                  'relative',
-                  rubricOpen && rubricResult ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : ''
-                )}
-              >
-                {rubricStatus === 'processing' || rubricStatus === 'pending' ? (
-                  <svg className="h-3.5 w-3.5 mr-1.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                Analyse
-              </Button>
-              {rubricResult && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRubricOpen((v) => !v)}
-                  className="text-zinc-500"
-                >
-                  {rubricOpen ? 'Hide' : 'Show'} result
-                </Button>
-              )}
             </div>
           )}
         </div>
@@ -614,7 +532,7 @@ export function TranscriptView() {
             No transcript segments available.
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 max-w-3xl mx-auto">
             {transcript.segments.map((seg, idx) => {
               const colorIdx = getSpeakerColorIndex(seg.speaker);
               const colorClass = SPEAKER_COLORS[colorIdx];
@@ -683,78 +601,6 @@ export function TranscriptView() {
       {hasAudio && (
         <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur-sm border-t border-zinc-800">
 
-          {/* Collapsible brief panel */}
-          {briefOpen && (brief || briefStatus === 'processing' || briefStatus === 'pending' || briefStatus === 'error') && (
-            <div className="border-b border-zinc-800 px-4 py-4">
-              <div className="mx-auto max-w-3xl">
-                {briefStatus === 'processing' || briefStatus === 'pending' ? (
-                  <div className="flex items-center gap-2 text-sm text-zinc-500">
-                    <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Generating call brief…
-                  </div>
-                ) : briefStatus === 'error' ? (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-red-400">Failed to generate brief.</p>
-                    <Button variant="ghost" size="sm" onClick={handleGenerateBrief} className="text-zinc-500 hover:text-zinc-200">
-                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                      Retry
-                    </Button>
-                  </div>
-                ) : brief ? (
-                  <div className="space-y-3">
-                  <div className="flex justify-end">
-                    <button
-                      onClick={handleGenerateBrief}
-                      className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
-                      title="Re-run brief analysis"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      Re-run analysis
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <BriefField
-                      icon={<Wrench className="h-3.5 w-3.5" />}
-                      label="Work Requested"
-                      value={brief.workType ?? 'Not mentioned'}
-                      timestamp={brief.workTypeTimestamp ?? null}
-                      hasAudio={hasAudio}
-                      onSeek={handleSegmentClick}
-                    />
-                    <BriefField
-                      icon={<AppointmentIcon value={brief.appointmentAgreed} />}
-                      label="Appointment Agreed"
-                      value={brief.appointmentAgreed === true ? 'Yes' : brief.appointmentAgreed === false ? 'No' : 'Not mentioned'}
-                      timestamp={brief.appointmentAgreedTimestamp ?? null}
-                      hasAudio={hasAudio}
-                      onSeek={handleSegmentClick}
-                    />
-                    <BriefField
-                      icon={<UserCheck className="h-3.5 w-3.5" />}
-                      label="Owner Present"
-                      value={brief.ownerPresent ?? 'Not mentioned'}
-                      timestamp={brief.ownerPresentTimestamp ?? null}
-                      hasAudio={hasAudio}
-                      onSeek={handleSegmentClick}
-                    />
-                    <BriefField
-                      icon={<Calendar className="h-3.5 w-3.5" />}
-                      label="Appointment Date"
-                      value={brief.appointmentDate ?? 'Not mentioned'}
-                      timestamp={brief.appointmentDateTimestamp ?? null}
-                      hasAudio={hasAudio}
-                      onSeek={handleSegmentClick}
-                    />
-                  </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          )}
-
           {/* Player controls row */}
           <div className="px-4 py-3">
             <div className="mx-auto max-w-3xl flex items-center gap-4">
@@ -804,28 +650,19 @@ export function TranscriptView() {
                 Sync
               </button>
 
-              {/* Brief toggle / generate */}
               {transcript.status === 'done' && (
                 <button
-                  onClick={() => {
-                    if (!brief && briefStatus !== 'processing' && briefStatus !== 'pending') {
-                      handleGenerateBrief();
-                      setBriefOpen(true);
-                    } else {
-                      setBriefOpen((v) => !v);
-                    }
-                  }}
-                  title={brief ? (briefOpen ? 'Hide brief' : 'Show brief') : 'Generate brief'}
+                  onClick={() => setAiPanelOpen((v) => !v)}
                   className={cn(
                     'relative flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all',
-                    briefOpen && (brief || briefStatus)
+                    aiPanelOpen
                       ? 'text-blue-400 bg-blue-500/10 border border-blue-500/30'
                       : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
                   )}
                 >
                   <Sparkles className="h-3 w-3" />
-                  Brief
-                  {(briefStatus === 'processing' || briefStatus === 'pending') && (
+                  AI Insights
+                  {((briefStatus === 'processing' || briefStatus === 'pending') || (rubricStatus === 'processing' || rubricStatus === 'pending')) && (
                     <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
                   )}
                 </button>
@@ -835,89 +672,187 @@ export function TranscriptView() {
         </div>
       )}
 
-      {/* Rubric analysis floating window */}
-      {rubricOpen && (rubricResult || rubricStatus === 'processing' || rubricStatus === 'pending' || rubricStatus === 'error') && (
-        <div
-          style={{ left: floatPos.x, top: floatPos.y }}
-          className="fixed z-50 w-[480px] max-w-[calc(100vw-2rem)] max-h-[70vh] flex flex-col rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-black/60"
-        >
-          {/* Drag handle / header */}
-          <div
-            className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-zinc-800 cursor-grab active:cursor-grabbing select-none rounded-t-xl bg-zinc-900"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              dragRef.current = { startX: e.clientX, startY: e.clientY, startPosX: floatPos.x, startPosY: floatPos.y };
-              const onMove = (ev: MouseEvent) => {
-                if (!dragRef.current) return;
-                const nx = dragRef.current.startPosX + ev.clientX - dragRef.current.startX;
-                const ny = dragRef.current.startPosY + ev.clientY - dragRef.current.startY;
-                setFloatPos({ x: Math.max(0, nx), y: Math.max(0, ny) });
-              };
-              const onUp = () => {
-                dragRef.current = null;
-                window.removeEventListener('mousemove', onMove);
-                window.removeEventListener('mouseup', onUp);
-              };
-              window.addEventListener('mousemove', onMove);
-              window.addEventListener('mouseup', onUp);
-            }}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <GripHorizontal className="h-3.5 w-3.5 text-zinc-600 flex-shrink-0" />
-              <Sparkles className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
-              <span className="text-sm font-medium text-zinc-100 truncate">
-                {rubrics.find((r) => r.id === rubricId)?.name ?? 'Rubric Analysis'}
-              </span>
-              <Badge variant="secondary" className="text-xs flex-shrink-0">AI</Badge>
+      {/* ── AI Insights side panel ── */}
+      {aiPanelOpen && (
+        <div className="fixed right-0 top-0 bottom-0 z-40 w-80 flex flex-col bg-zinc-950 border-l border-zinc-800 shadow-2xl shadow-black/40">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-blue-400" />
+              <span className="text-sm font-semibold text-zinc-100">AI Insights</span>
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {rubricStatus === 'done' && (
-                <button
-                  onClick={() => selectedRubricId && handleRunRubric(selectedRubricId)}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-                  title="Re-run analysis"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  Re-run
-                </button>
-              )}
-              <button
-                onClick={() => setRubricOpen(false)}
-                className="rounded-md p-1 text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            </div>
+            <button
+              onClick={() => setAiPanelOpen(false)}
+              className="rounded-md p-1 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
-          {/* Content */}
-          <div className="overflow-y-auto px-4 py-3 flex-1">
-            {(rubricStatus === 'processing' || rubricStatus === 'pending') ? (
-              <div className="flex items-center gap-2 text-sm text-zinc-500 py-2">
-                <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Running analysis…
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto">
+
+            {/* ── Brief section ── */}
+            {transcript && transcript.status === 'done' && (
+              <div className="border-b border-zinc-800">
+                <button
+                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-zinc-200 hover:bg-zinc-900/60 transition-colors"
+                  onClick={() => setBriefSectionOpen((v) => !v)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Wrench className="h-3.5 w-3.5 text-zinc-400" />
+                    Call Brief
+                    {(briefStatus === 'processing' || briefStatus === 'pending') && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    )}
+                  </div>
+                  <ChevronDown className={cn('h-3.5 w-3.5 text-zinc-500 transition-transform duration-150', briefSectionOpen ? '' : '-rotate-90')} />
+                </button>
+                {briefSectionOpen && (
+                  <div className="px-4 pb-4">
+                    {briefStatus === 'processing' || briefStatus === 'pending' ? (
+                      <div className="flex items-center gap-2 text-sm text-zinc-500 py-2">
+                        <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Generating call brief…
+                      </div>
+                    ) : briefStatus === 'error' ? (
+                      <div className="flex items-center justify-between py-2">
+                        <p className="text-sm text-red-400">Failed to generate.</p>
+                        <button onClick={handleGenerateBrief} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-200 rounded px-1.5 py-1 hover:bg-zinc-800 transition-colors">
+                          <RefreshCw className="h-3 w-3" />Retry
+                        </button>
+                      </div>
+                    ) : brief ? (
+                      <div className="space-y-3">
+                        <div className="flex justify-end">
+                          <button onClick={handleGenerateBrief} className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-300 transition-colors">
+                            <RefreshCw className="h-3 w-3" />Re-run
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <BriefField
+                            icon={<Wrench className="h-3.5 w-3.5" />}
+                            label="Work Requested"
+                            value={brief.workType ?? 'Not mentioned'}
+                            timestamp={brief.workTypeTimestamp ?? null}
+                            hasAudio={hasAudio}
+                            onSeek={handleSegmentClick}
+                          />
+                          <BriefField
+                            icon={<AppointmentIcon value={brief.appointmentAgreed} />}
+                            label="Appointment Agreed"
+                            value={brief.appointmentAgreed === true ? 'Yes' : brief.appointmentAgreed === false ? 'No' : 'Not mentioned'}
+                            timestamp={brief.appointmentAgreedTimestamp ?? null}
+                            hasAudio={hasAudio}
+                            onSeek={handleSegmentClick}
+                          />
+                          <BriefField
+                            icon={<UserCheck className="h-3.5 w-3.5" />}
+                            label="Owner Present"
+                            value={brief.ownerPresent ?? 'Not mentioned'}
+                            timestamp={brief.ownerPresentTimestamp ?? null}
+                            hasAudio={hasAudio}
+                            onSeek={handleSegmentClick}
+                          />
+                          <BriefField
+                            icon={<Calendar className="h-3.5 w-3.5" />}
+                            label="Appointment Date"
+                            value={brief.appointmentDate ?? 'Not mentioned'}
+                            timestamp={brief.appointmentDateTimestamp ?? null}
+                            hasAudio={hasAudio}
+                            onSeek={handleSegmentClick}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { handleGenerateBrief(); setBriefSectionOpen(true); }}
+                        className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-200 rounded-md px-2.5 py-1.5 hover:bg-zinc-800 transition-colors border border-zinc-700"
+                      >
+                        <Sparkles className="h-3 w-3" />Generate brief
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            ) : rubricStatus === 'error' ? (
-              <p className="text-sm text-red-400 py-2">Analysis failed. Try re-running.</p>
-            ) : rubricResult ? (
-              <div className="prose prose-sm prose-invert max-w-none
-                prose-headings:text-zinc-100 prose-headings:font-semibold
-                prose-p:text-zinc-300 prose-p:leading-relaxed
-                prose-strong:text-zinc-100
-                prose-em:text-zinc-300
-                prose-li:text-zinc-300
-                prose-code:text-blue-300 prose-code:bg-zinc-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
-                prose-pre:bg-zinc-800 prose-pre:border prose-pre:border-zinc-700
-                prose-blockquote:border-l-blue-500 prose-blockquote:text-zinc-400
-                prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
-                prose-hr:border-zinc-700
-                prose-table:text-sm prose-th:text-zinc-300 prose-td:text-zinc-400">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{rubricResult}</ReactMarkdown>
+            )}
+
+            {/* ── Analysis section ── */}
+            {transcript && transcript.status === 'done' && rubrics.length > 0 && (
+              <div>
+                <button
+                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-zinc-200 hover:bg-zinc-900/60 transition-colors"
+                  onClick={() => setAnalysisSectionOpen((v) => !v)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+                    Analysis
+                    {(rubricStatus === 'processing' || rubricStatus === 'pending') && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    )}
+                  </div>
+                  <ChevronDown className={cn('h-3.5 w-3.5 text-zinc-500 transition-transform duration-150', analysisSectionOpen ? '' : '-rotate-90')} />
+                </button>
+                {analysisSectionOpen && (
+                  <div className="px-4 pb-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedRubricId}
+                        onChange={(e) => setSelectedRubricId(e.target.value)}
+                        className="flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">Select rubric…</option>
+                        {rubrics.map((r) => (
+                          <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        disabled={!selectedRubricId || rubricStatus === 'processing' || rubricStatus === 'pending'}
+                        onClick={() => selectedRubricId && handleRunRubric(selectedRubricId)}
+                        className="flex items-center gap-1.5 rounded-md border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                      >
+                        {rubricStatus === 'processing' || rubricStatus === 'pending' ? (
+                          <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        {rubricResult ? 'Re-run' : 'Analyse'}
+                      </button>
+                    </div>
+                    {(rubricStatus === 'processing' || rubricStatus === 'pending') ? (
+                      <div className="flex items-center gap-2 text-sm text-zinc-500 py-1">
+                        <svg className="h-4 w-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Running analysis…
+                      </div>
+                    ) : rubricStatus === 'error' ? (
+                      <p className="text-sm text-red-400 py-1">Analysis failed. Try re-running.</p>
+                    ) : rubricResult ? (
+                      <div className="prose prose-sm prose-invert max-w-none
+                        prose-headings:text-zinc-100 prose-headings:font-semibold
+                        prose-p:text-zinc-300 prose-p:leading-relaxed
+                        prose-strong:text-zinc-100 prose-em:text-zinc-300
+                        prose-li:text-zinc-300
+                        prose-code:text-blue-300 prose-code:bg-zinc-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
+                        prose-pre:bg-zinc-800 prose-pre:border prose-pre:border-zinc-700
+                        prose-blockquote:border-l-blue-500 prose-blockquote:text-zinc-400
+                        prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
+                        prose-hr:border-zinc-700 prose-table:text-sm prose-th:text-zinc-300 prose-td:text-zinc-400">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{rubricResult}</ReactMarkdown>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
-            ) : null}
+            )}
           </div>
         </div>
       )}
