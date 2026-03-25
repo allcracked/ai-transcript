@@ -14,7 +14,7 @@ const ACCEPTED_TYPES = '.wav,.mp3,.m4a,.flac,.ogg,.webm';
 export function UploadForm({ onJobStarted }: UploadFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState('auto');
-  const [numSpeakers, setNumSpeakers] = useState(2);
+  const [numSpeakers, setNumSpeakers] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -142,10 +142,10 @@ export function UploadForm({ onJobStarted }: UploadFormProps) {
           value={String(numSpeakers)}
           onChange={(e) => setNumSpeakers(parseInt(e.target.value, 10))}
         >
+          <option value="0">Auto-detect</option>
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <option key={n} value={String(n)}>
               {n} {n === 1 ? 'Speaker' : 'Speakers'}
-              {n === 2 ? ' (default)' : ''}
             </option>
           ))}
         </Select>

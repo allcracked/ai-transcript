@@ -26,7 +26,7 @@ export async function diarize(
   const params: Parameters<typeof client.transcripts.transcribe>[0] = {
     audio: filePath,
     speaker_labels: true,
-    speakers_expected: numSpeakers,
+    ...(numSpeakers > 0 ? { speakers_expected: numSpeakers } : {}),
     speech_models: ['universal-2'],
   };
 
@@ -37,7 +37,7 @@ export async function diarize(
     log('Language: auto-detect');
   }
 
-  log(`Submitting to AssemblyAI (expected speakers: ${numSpeakers})...`);
+  log(`Submitting to AssemblyAI (expected speakers: ${numSpeakers > 0 ? numSpeakers : 'auto-detect'})...`);
   const transcript = await client.transcripts.transcribe(params);
   log(`AssemblyAI job status: ${transcript.status}`);
 
@@ -97,7 +97,7 @@ export async function transcribeAndDiarize(
   const params: Parameters<typeof client.transcripts.transcribe>[0] = {
     audio: filePath,
     speaker_labels: true,
-    speakers_expected: numSpeakers,
+    ...(numSpeakers > 0 ? { speakers_expected: numSpeakers } : {}),
     speech_models: ['universal-2'],
   };
 
@@ -108,7 +108,7 @@ export async function transcribeAndDiarize(
     log('Language: auto-detect');
   }
 
-  log(`Submitting to AssemblyAI (expected speakers: ${numSpeakers})...`);
+  log(`Submitting to AssemblyAI (expected speakers: ${numSpeakers > 0 ? numSpeakers : 'auto-detect'})...`);
   const transcript = await client.transcripts.transcribe(params);
   log(`AssemblyAI job status: ${transcript.status}`);
 

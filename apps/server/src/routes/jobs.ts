@@ -56,7 +56,8 @@ router.post('/', upload.single('file'), (req: Request, res: Response) => {
     }
     const model = (req.body.model as string) || (mode === 'local' ? 'base' : 'universal-2');
     const language = (req.body.language as string) || null;
-    const numSpeakers = parseInt(req.body.numSpeakers as string, 10) || 2;
+    const numSpeakersRaw = parseInt(req.body.numSpeakers as string, 10);
+    const numSpeakers = isNaN(numSpeakersRaw) ? 0 : numSpeakersRaw;
 
     const id = uuidv4();
     const now = new Date().toISOString();

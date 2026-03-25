@@ -317,52 +317,29 @@ export function TranscriptView() {
       )}
 
       <div className="space-y-4" style={hasAudio ? { paddingBottom: bottomBarHeight + 16 } : undefined}>
-        {/* Sticky toolbar — back button, filename, badges, copy/download */}
-        <div className="sticky top-[69px] z-[9] -mx-6 px-6 pt-4 pb-3 bg-zinc-900 border-b border-zinc-800/80">
-          <div className="flex items-center justify-between gap-3">
-            {/* Left: back + filename + actions */}
+        {/* Sticky toolbar */}
+        <div className="sticky top-[69px] z-[9] -mx-6 px-6 pt-4 pb-4 bg-zinc-900 border-b border-zinc-800/80 space-y-3">
+          {/* Row 1: left = back + filename/date, right = badges + uploader */}
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 min-w-0">
-              <Button variant="ghost" size="sm" onClick={onBack} className="flex-shrink-0">
+              <Button variant="ghost" size="sm" onClick={onBack} className="flex-shrink-0 -ml-2">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <div className="min-w-0 mr-2">
+              <div className="min-w-0">
                 <h2
                   title={transcript.originalFilename}
-                  className="font-semibold text-zinc-100 truncate max-w-[140px] sm:max-w-xs cursor-default"
+                  className="font-semibold text-zinc-100 truncate cursor-default"
                 >
                   {transcript.originalFilename}
                 </h2>
                 <p className="text-xs text-zinc-500">
-                  {createdDate}
                   {transcript.uploaderName && (
-                    <span className="ml-2 text-zinc-600">· {transcript.uploaderName}</span>
+                    <span className="text-zinc-400">{transcript.uploaderName} · </span>
                   )}
+                  {createdDate}
                 </p>
               </div>
-              {transcript.segments && transcript.segments.length > 0 && (
-                <>
-                  <Button variant="outline" size="sm" onClick={handleCopy} className="flex-shrink-0">
-                    {copied ? (
-                      <>
-                        <Check className="mr-1.5 h-3.5 w-3.5 text-green-400" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="mr-1.5 h-3.5 w-3.5" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleDownload} className="flex-shrink-0">
-                    <Download className="mr-1.5 h-3.5 w-3.5" />
-                    Download
-                  </Button>
-                </>
-              )}
             </div>
-
-            {/* Right: model info badges */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <Badge variant="secondary">
                 {transcript.mode === 'api' ? 'API' : transcript.mode === 'assemblyai' ? 'AssemblyAI' : 'Local'}
@@ -370,6 +347,55 @@ export function TranscriptView() {
               <Badge variant="outline">{transcript.model}</Badge>
             </div>
           </div>
+
+          {/* Row 2: action buttons left-aligned */}
+          {transcript.segments && transcript.segments.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleCopy}>
+                {copied ? (
+                  <>
+                    <Check className="mr-1.5 h-3.5 w-3.5 text-green-400" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                    Copy
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownload}>
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                Download
+              </Button>
+              {transcript.status === 'done' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (!brief && briefStatus !== 'processing' && briefStatus !== 'pending') {
+                      handleGenerateBrief();
+                      setBriefOpen(true);
+                    } else {
+                      setBriefOpen((v) => !v);
+                    }
+                  }}
+                  className={cn(
+                    'relative',
+                    briefOpen && (brief || briefStatus)
+                      ? 'text-blue-400 border-blue-500/30 bg-blue-500/10'
+                      : ''
+                  )}
+                >
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  Brief
+                  {(briefStatus === 'processing' || briefStatus === 'pending') && (
+                    <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Segments */}
