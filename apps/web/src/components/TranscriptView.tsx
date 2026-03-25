@@ -7,14 +7,9 @@ import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
 
 function formatTimestamp(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
+  const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
-  return [
-    String(h).padStart(2, '0'),
-    String(m).padStart(2, '0'),
-    String(s).padStart(2, '0'),
-  ].join(':');
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function formatPlayerTime(seconds: number): string {
@@ -432,7 +427,7 @@ export function TranscriptView() {
                     >
                       {seg.speaker}
                     </span>
-                    <span className="text-xs text-zinc-500 font-mono">
+                    <span className="text-xs text-zinc-300 font-mono bg-zinc-800 px-2 py-0.5 rounded-md">
                       {formatTimestamp(seg.start)} → {formatTimestamp(seg.end)}
                     </span>
                     {isActive && (
