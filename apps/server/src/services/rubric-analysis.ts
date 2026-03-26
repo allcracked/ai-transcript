@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import db from '../db';
 import { Segment } from '../types';
+import { FALLBACK_MODEL, isRetryableError } from './gemini-retry';
 
 const MODEL = 'gemini-3.1-flash-lite-preview';
 
@@ -53,7 +54,12 @@ export async function runRubricAnalysis(transcriptId: string, rubricId: string):
     const model = genAI.getGenerativeModel({ model: MODEL });
 
     const prompt = `${rubric.prompt}\n\nTranscript:\n${transcriptText}`;
-    const result = await model.generateContent(prompt);
+    let result = await model.generateContent(prompt).catch((err) => {
+      if (!isRetryableError(err)) throw err;
+      console.warn(`[RUBRIC] Retrying with fallback model for transcript ${transcriptId}`);
+      const fallback = genAI.getGenerativeModel({ model: FALLBACK_MODEL });
+      return fallback.generateContent(prompt);
+    });
     const text = result.response.text().trim();
 
     db.prepare(

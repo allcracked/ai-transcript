@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import db from '../db';
 import { CallBrief, Segment } from '../types';
+import { FALLBACK_MODEL, isRetryableError } from './gemini-retry';
 
 const MODEL = 'gemini-3.1-flash-lite-preview';
 
@@ -69,7 +70,12 @@ export async function generateCombinedAnalysis(batchId: string): Promise<void> {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: MODEL });
 
-    const result = await model.generateContent(PROMPT + fullText);
+    let result = await model.generateContent(PROMPT + fullText).catch((err) => {
+      if (!isRetryableError(err)) throw err;
+      console.warn(`[BATCH-BRIEF] Retrying with fallback model for batch ${batchId}`);
+      const fallback = genAI.getGenerativeModel({ model: FALLBACK_MODEL });
+      return fallback.generateContent(PROMPT + fullText);
+    });
     const text = result.response.text().trim();
 
     let brief: CallBrief;
