@@ -4,6 +4,7 @@ import {
   ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw,
   Sparkles, RefreshCw, Calendar, Wrench, UserCheck,
   CheckCircle2, XCircle, HelpCircle, X, ChevronDown,
+  SkipBack, SkipForward, Volume2, VolumeX,
 } from 'lucide-react';
 import { api, CallBatch, CallBrief, Rubric, Segment } from '../lib/api';
 import { Button } from './ui/button';
@@ -112,6 +113,9 @@ export function BatchView({ batchId }: { batchId: string }) {
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const pendingSeekRef = useRef<number | null>(null);
 
   // Brief
@@ -268,6 +272,32 @@ export function BatchView({ batchId }: { batchId: string }) {
     setCurrentTime(t);
   }, []);
 
+  const handleSkip = useCallback((seconds: number) => {
+    if (!audioRef.current) return;
+    const newTime = Math.max(0, Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + seconds));
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+  }, []);
+
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = Number(e.target.value);
+    setVolume(v);
+    if (audioRef.current) audioRef.current.volume = v;
+    if (v > 0) setIsMuted(false);
+  }, []);
+
+  const handleMuteToggle = useCallback(() => {
+    if (!audioRef.current) return;
+    const next = !isMuted;
+    audioRef.current.muted = next;
+    setIsMuted(next);
+  }, [isMuted]);
+
+  const handlePlaybackRate = useCallback((rate: number) => {
+    setPlaybackRate(rate);
+    if (audioRef.current) audioRef.current.playbackRate = rate;
+  }, []);
+
   const handleSegmentClick = useCallback((callIdx: number, start: number) => {
     if (callIdx !== activeCallIdx) {
       pendingSeekRef.current = start;
@@ -409,6 +439,23 @@ export function BatchView({ batchId }: { batchId: string }) {
               <Button variant="outline" size="sm" onClick={handleDownload}>
                 <Download className="mr-1.5 h-3.5 w-3.5" />Download
               </Button>
+              {batch.status === 'done' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAiPanelOpen((v) => !v)}
+                  className={cn(
+                    'relative ml-auto',
+                    aiPanelOpen && 'text-blue-400 border-blue-500/30 bg-blue-500/10'
+                  )}
+                >
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  AI Insights
+                  {((briefStatus === 'processing' || briefStatus === 'pending') || (rubricStatus === 'processing' || rubricStatus === 'pending')) && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
+                  )}
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -483,57 +530,135 @@ export function BatchView({ batchId }: { batchId: string }) {
       {hasAudio && (
         <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur-sm border-t border-zinc-800">
 
-          {/* Player row */}
-          <div className="px-4 py-3">
-            <div className="mx-auto max-w-3xl space-y-2">
-              {/* Call selector */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-500 flex-shrink-0">Listening to:</span>
-                <select
-                  value={activeCallIdx}
-                  onChange={(e) => { setActiveCallIdx(Number(e.target.value)); setAutoScroll(true); }}
-                  className="flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
-                >
-                  {transcripts.map((t, i) => (
-                    <option key={t.id} value={i}>Call {i + 1} — {t.originalFilename}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Seek + controls */}
-              <div className="flex items-center gap-4">
-                <button onClick={togglePlay} className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-500 transition-colors">
-                  {isPlaying ? <Pause className="h-4 w-4 text-white" /> : <Play className="h-4 w-4 text-white translate-x-px" />}
-                </button>
-                <div className="flex flex-1 items-center gap-3 min-w-0">
-                  <span className="text-xs text-zinc-400 font-mono flex-shrink-0 w-10 text-right">{formatTimestamp(currentTime)}</span>
-                  <input type="range" min={0} max={duration || 0} step={0.1} value={currentTime} onChange={handleSeek}
-                    className="flex-1 h-1.5 appearance-none rounded-full bg-zinc-700 accent-blue-500 cursor-pointer" />
-                  <span className="text-xs text-zinc-500 font-mono flex-shrink-0 w-10">{formatTimestamp(duration)}</span>
-                </div>
-                <button
-                  onClick={() => setAutoScroll(true)}
-                  className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all',
-                    autoScroll ? 'text-zinc-600 pointer-events-none' : 'text-blue-400 hover:bg-blue-500/10 border border-blue-500/30')}
-                >
-                  <RotateCcw className="h-3 w-3" />Sync
-                </button>
-                {batch.status === 'done' && (
-                  <button
-                    onClick={() => setAiPanelOpen((v) => !v)}
-                    className={cn('relative flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all',
-                      aiPanelOpen
-                        ? 'text-blue-400 bg-blue-500/10 border border-blue-500/30'
-                        : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800')}
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    AI Insights
-                    {((briefStatus === 'processing' || briefStatus === 'pending') || (rubricStatus === 'processing' || rubricStatus === 'pending')) && (
-                      <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                    )}
-                  </button>
-                )}
-              </div>
+          {/* Row 0: call selector */}
+          <div className="px-6 pt-3">
+            <div className="mx-auto max-w-3xl flex items-center gap-2">
+              <span className="text-xs text-zinc-500 flex-shrink-0">Listening to:</span>
+              <select
+                value={activeCallIdx}
+                onChange={(e) => { setActiveCallIdx(Number(e.target.value)); setAutoScroll(true); }}
+                className="flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
+              >
+                {transcripts.map((t, i) => (
+                  <option key={t.id} value={i}>Call {i + 1} — {t.originalFilename}</option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          {/* Row 1: seek bar */}
+          <div className="px-6 pt-2">
+            <div className="mx-auto max-w-3xl flex items-center gap-3">
+              <span className="text-xs text-zinc-400 font-mono flex-shrink-0 w-10 text-right">
+                {formatTimestamp(currentTime)}
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={duration || 0}
+                step={0.1}
+                value={currentTime}
+                onChange={handleSeek}
+                className="flex-1 h-2 appearance-none rounded-full bg-zinc-700 accent-blue-500 cursor-pointer"
+              />
+              <span className="text-xs text-zinc-500 font-mono flex-shrink-0 w-10">
+                {formatTimestamp(duration)}
+              </span>
+            </div>
+          </div>
+
+          {/* Row 2: controls */}
+          <div className="px-6 py-3">
+            <div className="mx-auto max-w-3xl flex items-center gap-3">
+
+              {/* Skip back */}
+              <button
+                onClick={() => handleSkip(-10)}
+                title="Back 10s"
+                className="flex flex-col items-center justify-center w-10 h-10 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors flex-shrink-0"
+              >
+                <SkipBack className="h-4.5 w-4.5" />
+                <span className="text-[10px] leading-none mt-0.5 font-medium">10s</span>
+              </button>
+
+              {/* Play / Pause */}
+              <button
+                onClick={togglePlay}
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 hover:bg-blue-500 transition-colors"
+              >
+                {isPlaying ? (
+                  <Pause className="h-5 w-5 text-white" />
+                ) : (
+                  <Play className="h-5 w-5 text-white translate-x-px" />
+                )}
+              </button>
+
+              {/* Skip forward */}
+              <button
+                onClick={() => handleSkip(10)}
+                title="Forward 10s"
+                className="flex flex-col items-center justify-center w-10 h-10 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors flex-shrink-0"
+              >
+                <SkipForward className="h-4.5 w-4.5" />
+                <span className="text-[10px] leading-none mt-0.5 font-medium">10s</span>
+              </button>
+
+              <div className="w-px h-5 bg-zinc-700 mx-1 flex-shrink-0" />
+
+              {/* Mute + Volume */}
+              <button
+                onClick={handleMuteToggle}
+                className="flex-shrink-0 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+                title={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted || volume === 0 ? (
+                  <VolumeX className="h-4.5 w-4.5" />
+                ) : (
+                  <Volume2 className="h-4.5 w-4.5" />
+                )}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                className="w-24 h-2 appearance-none rounded-full bg-zinc-700 accent-blue-500 cursor-pointer flex-shrink-0"
+              />
+
+              <div className="flex-1" />
+
+              {/* Playback speed */}
+              <select
+                value={playbackRate}
+                onChange={(e) => handlePlaybackRate(Number(e.target.value))}
+                className="rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-200 focus:outline-none focus:border-blue-500 cursor-pointer flex-shrink-0"
+              >
+                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                  <option key={rate} value={rate}>{rate}×</option>
+                ))}
+              </select>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Floating sync button ── */}
+      {hasAudio && !autoScroll && (
+        <div
+          className="fixed left-0 z-50 pointer-events-none flex justify-center"
+          style={{ bottom: bottomBarHeight + 64, right: aiPanelOpen ? '320px' : '0' }}
+        >
+          <div className="w-full max-w-3xl px-4 flex justify-center">
+            <button
+              onClick={() => setAutoScroll(true)}
+              className="pointer-events-auto flex items-center gap-2 rounded-full bg-zinc-900 border border-blue-500/40 px-4 py-2 text-sm font-medium text-blue-400 shadow-lg shadow-black/40 hover:bg-zinc-800 hover:border-blue-500 hover:text-blue-300 transition-all"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Sync to playback
+            </button>
           </div>
         </div>
       )}
