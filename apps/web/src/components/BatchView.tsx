@@ -4,7 +4,7 @@ import {
   ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw,
   Sparkles, RefreshCw, Calendar, Wrench, UserCheck,
   CheckCircle2, XCircle, HelpCircle, X, ChevronDown,
-  SkipBack, SkipForward, Volume2, VolumeX,
+  SkipBack, SkipForward, Volume2, VolumeX, Scissors,
 } from 'lucide-react';
 import { api, CallBatch, CallBrief, Rubric, Segment } from '../lib/api';
 import { Button } from './ui/button';
@@ -132,6 +132,11 @@ export function BatchView({ batchId }: { batchId: string }) {
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [briefSectionOpen, setBriefSectionOpen] = useState(true);
   const [analysisSectionOpen, setAnalysisSectionOpen] = useState(true);
+
+  // Clip export state
+  const [isClipMode, setIsClipMode] = useState(false);
+  const [selectedSegments, setSelectedSegments] = useState<Set<number>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
 
   // Layout
   const bottomBarRef = useRef<HTMLDivElement>(null);
@@ -355,6 +360,86 @@ export function BatchView({ batchId }: { batchId: string }) {
     URL.revokeObjectURL(url);
   };
 
+  // ── Clip export ─────────────────────────────────────────────────────────────
+
+  const toggleSegmentSelection = useCallback((gIdx: number) => {
+    setSelectedSegments((prev) => {
+      const next = new Set(prev);
+      if (next.has(gIdx)) next.delete(gIdx); else next.add(gIdx);
+      return next;
+    });
+  }, []);
+
+  const handleExportSnippet = useCallback(async () => {
+    if (!activeAudioUrl || selectedSegments.size === 0) return;
+    const activeSegs = [...selectedSegments]
+      .map((i) => flatSegments[i])
+      .filter((fs) => fs.callIdx === activeCallIdx)
+      .map((fs) => fs.seg);
+    if (activeSegs.length === 0) return;
+    setIsExporting(true);
+    try {
+      const startTime = Math.min(...activeSegs.map((s) => s.start));
+      const endTime = Math.max(...activeSegs.map((s) => s.end));
+
+      const response = await fetch(activeAudioUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioCtx = new AudioContext();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+      const sampleRate = audioBuffer.sampleRate;
+      const startSample = Math.floor(startTime * sampleRate);
+      const endSample = Math.floor(endTime * sampleRate);
+      const channels = audioBuffer.numberOfChannels;
+
+      const leftFloat = audioBuffer.getChannelData(0).slice(startSample, endSample);
+      const rightFloat = channels > 1
+        ? audioBuffer.getChannelData(1).slice(startSample, endSample)
+        : leftFloat;
+
+      const toInt16 = (f32: Float32Array): Int16Array => {
+        const i16 = new Int16Array(f32.length);
+        for (let i = 0; i < f32.length; i++) {
+          const s = Math.max(-1, Math.min(1, f32[i]));
+          i16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+        return i16;
+      };
+
+      const { Mp3Encoder } = await import('@breezystack/lamejs');
+      const encoder = new Mp3Encoder(channels, sampleRate, 128);
+      const mp3Chunks: Uint8Array[] = [];
+      const CHUNK = 1152;
+      const leftInt16 = toInt16(leftFloat);
+      const rightInt16 = toInt16(rightFloat);
+
+      for (let i = 0; i < leftInt16.length; i += CHUNK) {
+        const l = leftInt16.subarray(i, i + CHUNK);
+        const r = rightInt16.subarray(i, i + CHUNK);
+        const buf = channels > 1 ? encoder.encodeBuffer(l, r) : encoder.encodeBuffer(l);
+        if (buf.length > 0) mp3Chunks.push(buf);
+      }
+      const tail = encoder.flush();
+      if (tail.length > 0) mp3Chunks.push(tail);
+
+      const blob = new Blob(mp3Chunks as BlobPart[], { type: 'audio/mp3' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const baseName = (batch?.transcripts?.[activeCallIdx]?.originalFilename ?? `call_${activeCallIdx + 1}`).replace(/\.[^.]+$/, '');
+      a.download = `${baseName}_${formatTimestamp(startTime)}-${formatTimestamp(endTime)}.mp3`;
+      a.click();
+      URL.revokeObjectURL(url);
+      await audioCtx.close();
+      setIsClipMode(false);
+      setSelectedSegments(new Set());
+    } catch (err) {
+      console.error('Snippet export failed:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [activeAudioUrl, selectedSegments, flatSegments, activeCallIdx, batch]);
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -439,6 +524,50 @@ export function BatchView({ batchId }: { batchId: string }) {
               <Button variant="outline" size="sm" onClick={handleDownload}>
                 <Download className="mr-1.5 h-3.5 w-3.5" />Download
               </Button>
+              {hasAudio && !isClipMode && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setIsClipMode(true); setSelectedSegments(new Set()); }}
+                >
+                  <Scissors className="mr-1.5 h-3.5 w-3.5" />
+                  Create Clip
+                </Button>
+              )}
+              {hasAudio && isClipMode && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportSnippet}
+                    disabled={isExporting || selectedSegments.size === 0}
+                    className="text-blue-400 border-blue-500/30 hover:bg-blue-500/10 disabled:opacity-40"
+                  >
+                    {isExporting ? (
+                      <>
+                        <svg className="mr-1.5 h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Exporting…
+                      </>
+                    ) : (
+                      <>
+                        <Scissors className="mr-1.5 h-3.5 w-3.5" />
+                        Export Clip{selectedSegments.size > 0 ? ` (${selectedSegments.size})` : ''}
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setIsClipMode(false); setSelectedSegments(new Set()); }}
+                    disabled={isExporting}
+                  >
+                    Cancel Export
+                  </Button>
+                </>
+              )}
               {batch.status === 'done' && (
                 <Button
                   variant="outline"
@@ -485,16 +614,30 @@ export function BatchView({ batchId }: { batchId: string }) {
                     {segs.map((seg, segIdx) => {
                       const gIdx = globalStart + segIdx;
                       const isActive = hasAudio && activeCallIdx === callIdx && gIdx === activeGlobalIdx;
+                      const isSelected = selectedSegments.has(gIdx);
                       return (
                         <div
                           key={segIdx}
                           ref={(el) => { segmentRefs.current[gIdx] = el; }}
                           className={cn(
                             'rounded-xl border p-4 space-y-2 transition-colors duration-150',
-                            isActive ? 'border-blue-500/50 bg-blue-500/5' : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+                            isClipMode && isSelected
+                              ? 'border-blue-500/40 bg-blue-500/5'
+                              : isActive
+                              ? 'border-blue-500/50 bg-blue-500/5'
+                              : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
                           )}
                         >
                           <div className="flex items-center gap-3">
+                            {isClipMode && (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSegmentSelection(gIdx)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-3.5 w-3.5 flex-shrink-0 rounded accent-blue-500 cursor-pointer"
+                              />
+                            )}
                             <span
                               onClick={() => handleSegmentClick(callIdx, seg.start)}
                               className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-pointer', speakerColor(seg.speaker))}
