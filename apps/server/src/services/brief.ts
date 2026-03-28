@@ -63,6 +63,7 @@ export async function generateBrief(transcriptId: string): Promise<void> {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: MODEL });
 
+    const t0 = Date.now();
     let usedModel = MODEL;
     let result = await model.generateContent(PROMPT + transcriptText).catch((err) => {
       if (!isRetryableError(err)) throw err;
@@ -83,8 +84,8 @@ export async function generateBrief(transcriptId: string): Promise<void> {
     }
 
     db.prepare(
-      'UPDATE transcripts SET brief = ?, brief_status = ?, brief_model = ?, updated_at = ? WHERE id = ?'
-    ).run(JSON.stringify(brief), 'done', usedModel, new Date().toISOString(), transcriptId);
+      'UPDATE transcripts SET brief = ?, brief_status = ?, brief_model = ?, brief_duration_ms = ?, updated_at = ? WHERE id = ?'
+    ).run(JSON.stringify(brief), 'done', usedModel, Date.now() - t0, new Date().toISOString(), transcriptId);
 
     console.log(`[BRIEF] ✓ Brief saved for transcript ${transcriptId}`);
   } catch (err) {

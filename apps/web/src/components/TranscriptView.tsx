@@ -8,6 +8,13 @@ import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+function formatDuration(ms: number): string {
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  const m = Math.floor(ms / 60000);
+  const s = ((ms % 60000) / 1000).toFixed(0);
+  return `${m}m ${s}s`;
+}
+
 function formatTimestamp(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -571,11 +578,26 @@ export function TranscriptView() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
               <Badge variant="secondary">
                 {transcript.mode === 'api' ? 'API' : transcript.mode === 'assemblyai' ? 'AssemblyAI' : 'Local'}
               </Badge>
               <Badge variant="outline">{transcript.model}</Badge>
+              {transcript.mode === 'assemblyai' && transcript.transcriptionDurationMs != null && (
+                <span className="text-xs text-zinc-500" title="AssemblyAI transcription time">
+                  ⏱ {formatDuration(transcript.transcriptionDurationMs)}
+                </span>
+              )}
+              {transcript.briefDurationMs != null && (
+                <span className="text-xs text-zinc-500" title="Gemini brief generation time">
+                  ✦ Brief {formatDuration(transcript.briefDurationMs)}
+                </span>
+              )}
+              {transcript.rubricDurationMs != null && (
+                <span className="text-xs text-zinc-500" title="Gemini analysis time">
+                  ✦ Analysis {formatDuration(transcript.rubricDurationMs)}
+                </span>
+              )}
             </div>
           </div>
 

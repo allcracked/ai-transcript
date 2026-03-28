@@ -60,6 +60,7 @@ export async function runBatchRubricAnalysis(batchId: string, rubricId: string):
     const model = genAI.getGenerativeModel({ model: MODEL });
 
     const prompt = `${rubric.prompt}\n\nTranscripts:\n${transcriptText}`;
+    const t0 = Date.now();
     let usedModel = MODEL;
     let result = await model.generateContent(prompt).catch((err) => {
       if (!isRetryableError(err)) throw err;
@@ -71,8 +72,8 @@ export async function runBatchRubricAnalysis(batchId: string, rubricId: string):
     const text = result.response.text().trim();
 
     db.prepare(
-      'UPDATE call_batches SET rubric_result = ?, rubric_status = ?, rubric_model = ?, updated_at = ? WHERE id = ?'
-    ).run(text, 'done', usedModel, new Date().toISOString(), batchId);
+      'UPDATE call_batches SET rubric_result = ?, rubric_status = ?, rubric_model = ?, rubric_duration_ms = ?, updated_at = ? WHERE id = ?'
+    ).run(text, 'done', usedModel, Date.now() - t0, new Date().toISOString(), batchId);
 
     console.log(`[BATCH-RUBRIC] ✓ Analysis saved for batch ${batchId}`);
   } catch (err) {

@@ -28,10 +28,12 @@ export interface CallBatch {
   brief: CallBrief | null;
   briefStatus: BriefStatus | null;
   briefModel: string | null;
+  briefDurationMs: number | null;
   rubricId: string | null;
   rubricResult: string | null;
   rubricStatus: BriefStatus | null;
   rubricModel: string | null;
+  rubricDurationMs: number | null;
   userId: string | null;
   uploaderName: string | null;
   model: string | null;
@@ -56,13 +58,16 @@ export interface Transcript {
   updatedAt: string;
   errorMessage: string | null;
   uploaderName: string | null;
+  transcriptionDurationMs: number | null;
   brief: CallBrief | null;
   briefStatus: BriefStatus | null;
   briefModel: string | null;
+  briefDurationMs: number | null;
   rubricId: string | null;
   rubricResult: string | null;
   rubricStatus: BriefStatus | null;
   rubricModel: string | null;
+  rubricDurationMs: number | null;
   batchId: string | null;
   batchOrder: number | null;
 }

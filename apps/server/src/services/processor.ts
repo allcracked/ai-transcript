@@ -64,7 +64,7 @@ export async function processJob(
         message: 'Uploading to AssemblyAI...',
       });
 
-      segments = await transcribeAndDiarize(
+      const assemblyResult = await transcribeAndDiarize(
         row.file_path,
         row.num_speakers,
         row.language ?? undefined,
@@ -76,8 +76,12 @@ export async function processJob(
           });
         }
       );
+      segments = assemblyResult.segments;
 
-      console.log(`[PROCESSOR] AssemblyAI done — ${segments.length} segments`);
+      db.prepare('UPDATE transcripts SET transcription_duration_ms = ? WHERE id = ?')
+        .run(assemblyResult.durationMs, transcriptId);
+
+      console.log(`[PROCESSOR] AssemblyAI done — ${segments.length} segments (${assemblyResult.durationMs}ms)`);
       emitProgress({
         step: 'diarizing',
         progress: 85,

@@ -15,6 +15,13 @@ import remarkGfm from 'remark-gfm';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+function formatDuration(ms: number): string {
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  const m = Math.floor(ms / 60000);
+  const s = ((ms % 60000) / 1000).toFixed(0);
+  return `${m}m ${s}s`;
+}
+
 function formatTimestamp(s: number): string {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
@@ -582,9 +589,29 @@ export function BatchView({ batchId }: { batchId: string }) {
               </div>
             </div>
             {batch.model && (
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
                 <Badge variant="secondary">AssemblyAI</Badge>
                 <Badge variant="outline">{batch.model}</Badge>
+                {(() => {
+                  const total = (batch.transcripts ?? []).reduce(
+                    (sum, t) => sum + (t.transcriptionDurationMs ?? 0), 0
+                  );
+                  return total > 0 ? (
+                    <span className="text-xs text-zinc-500" title="Total AssemblyAI transcription time">
+                      ⏱ {formatDuration(total)}
+                    </span>
+                  ) : null;
+                })()}
+                {batch.briefDurationMs != null && (
+                  <span className="text-xs text-zinc-500" title="Gemini brief generation time">
+                    ✦ Brief {formatDuration(batch.briefDurationMs)}
+                  </span>
+                )}
+                {batch.rubricDurationMs != null && (
+                  <span className="text-xs text-zinc-500" title="Gemini analysis time">
+                    ✦ Analysis {formatDuration(batch.rubricDurationMs)}
+                  </span>
+                )}
               </div>
             )}
           </div>

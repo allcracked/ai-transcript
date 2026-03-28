@@ -161,5 +161,23 @@ if (!transcriptColsV2.find((c) => c.name === 'rubric_model')) {
 if (!transcriptColsV2.find((c) => c.name === 'name')) {
   db.exec(`ALTER TABLE transcripts ADD COLUMN name TEXT`);
 }
+if (!transcriptColsV2.find((c) => c.name === 'transcription_duration_ms')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN transcription_duration_ms INTEGER`);
+}
+if (!transcriptColsV2.find((c) => c.name === 'brief_duration_ms')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN brief_duration_ms INTEGER`);
+}
+if (!transcriptColsV2.find((c) => c.name === 'rubric_duration_ms')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN rubric_duration_ms INTEGER`);
+}
+
+// Add duration columns to call_batches if they don't exist
+const batchColsV2 = db.prepare(`PRAGMA table_info(call_batches)`).all() as { name: string }[];
+if (!batchColsV2.find((c) => c.name === 'brief_duration_ms')) {
+  db.exec(`ALTER TABLE call_batches ADD COLUMN brief_duration_ms INTEGER`);
+}
+if (!batchColsV2.find((c) => c.name === 'rubric_duration_ms')) {
+  db.exec(`ALTER TABLE call_batches ADD COLUMN rubric_duration_ms INTEGER`);
+}
 
 export default db;

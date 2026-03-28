@@ -54,13 +54,16 @@ interface TranscriptDbRow {
   error_message: string | null;
   user_id: string | null;
   uploader_name: string | null;
+  transcription_duration_ms: number | null;
   brief: string | null;
   brief_status: string | null;
   brief_model: string | null;
+  brief_duration_ms: number | null;
   rubric_id: string | null;
   rubric_result: string | null;
   rubric_status: string | null;
   rubric_model: string | null;
+  rubric_duration_ms: number | null;
   batch_id: string | null;
   batch_order: number | null;
 }
@@ -72,6 +75,7 @@ interface BatchDbRow {
   combined_analysis: string | null;
   combined_analysis_status: string | null;
   brief_model: string | null;
+  brief_duration_ms: number | null;
   user_id: string | null;
   uploader_name: string | null;
   transcript_model: string | null;
@@ -79,6 +83,7 @@ interface BatchDbRow {
   rubric_result: string | null;
   rubric_status: string | null;
   rubric_model: string | null;
+  rubric_duration_ms: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -101,13 +106,16 @@ function rowToTranscript(row: TranscriptDbRow): Transcript {
     updatedAt: row.updated_at,
     errorMessage: row.error_message,
     uploaderName: row.uploader_name ?? null,
+    transcriptionDurationMs: row.transcription_duration_ms ?? null,
     brief: row.brief ? (JSON.parse(row.brief) as CallBrief) : null,
     briefStatus: (row.brief_status ?? null) as Transcript['briefStatus'],
     briefModel: row.brief_model ?? null,
+    briefDurationMs: row.brief_duration_ms ?? null,
     rubricId: row.rubric_id ?? null,
     rubricResult: row.rubric_result ?? null,
     rubricStatus: (row.rubric_status ?? null) as Transcript['rubricStatus'],
     rubricModel: row.rubric_model ?? null,
+    rubricDurationMs: row.rubric_duration_ms ?? null,
     batchId: row.batch_id ?? null,
     batchOrder: row.batch_order ?? null,
   };
@@ -121,6 +129,7 @@ function rowToBatch(row: BatchDbRow, transcripts?: Transcript[]): CallBatch {
     brief: row.combined_analysis ? (JSON.parse(row.combined_analysis) as CallBrief) : null,
     briefStatus: (row.combined_analysis_status ?? null) as CallBatch['briefStatus'],
     briefModel: row.brief_model ?? null,
+    briefDurationMs: row.brief_duration_ms ?? null,
     userId: row.user_id,
     uploaderName: row.uploader_name ?? null,
     model: row.transcript_model ?? null,
@@ -128,6 +137,7 @@ function rowToBatch(row: BatchDbRow, transcripts?: Transcript[]): CallBatch {
     rubricResult: row.rubric_result ?? null,
     rubricStatus: (row.rubric_status ?? null) as CallBatch['rubricStatus'],
     rubricModel: row.rubric_model ?? null,
+    rubricDurationMs: row.rubric_duration_ms ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     transcripts,

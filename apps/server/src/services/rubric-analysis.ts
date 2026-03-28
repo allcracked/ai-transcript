@@ -54,6 +54,7 @@ export async function runRubricAnalysis(transcriptId: string, rubricId: string):
     const model = genAI.getGenerativeModel({ model: MODEL });
 
     const prompt = `${rubric.prompt}\n\nTranscript:\n${transcriptText}`;
+    const t0 = Date.now();
     let usedModel = MODEL;
     let result = await model.generateContent(prompt).catch((err) => {
       if (!isRetryableError(err)) throw err;
@@ -65,8 +66,8 @@ export async function runRubricAnalysis(transcriptId: string, rubricId: string):
     const text = result.response.text().trim();
 
     db.prepare(
-      'UPDATE transcripts SET rubric_result = ?, rubric_status = ?, rubric_model = ?, updated_at = ? WHERE id = ?'
-    ).run(text, 'done', usedModel, new Date().toISOString(), transcriptId);
+      'UPDATE transcripts SET rubric_result = ?, rubric_status = ?, rubric_model = ?, rubric_duration_ms = ?, updated_at = ? WHERE id = ?'
+    ).run(text, 'done', usedModel, Date.now() - t0, new Date().toISOString(), transcriptId);
 
     console.log(`[RUBRIC] ✓ Analysis saved for transcript ${transcriptId}`);
   } catch (err) {

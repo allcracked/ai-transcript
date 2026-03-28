@@ -84,7 +84,7 @@ export async function transcribeAndDiarize(
   numSpeakers: number,
   language?: string,
   onProgress?: (message: string) => void
-): Promise<Segment[]> {
+): Promise<{ segments: Segment[]; durationMs: number }> {
   const client = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY! });
 
   const log = (msg: string) => {
@@ -109,7 +109,9 @@ export async function transcribeAndDiarize(
   }
 
   log(`Submitting to AssemblyAI (expected speakers: ${numSpeakers > 0 ? numSpeakers : 'auto-detect'})...`);
+  const t0 = Date.now();
   const transcript = await client.transcripts.transcribe(params);
+  const durationMs = Date.now() - t0;
   log(`AssemblyAI job status: ${transcript.status}`);
 
   if (transcript.status === 'error') {
@@ -118,7 +120,7 @@ export async function transcribeAndDiarize(
 
   if (!transcript.utterances || transcript.utterances.length === 0) {
     log('No utterances returned from AssemblyAI');
-    return [];
+    return { segments: [], durationMs };
   }
 
   log(`Processing ${transcript.utterances.length} utterances...`);
@@ -133,5 +135,5 @@ export async function transcribeAndDiarize(
   const speakerSet = [...new Set(segments.map(s => s.speaker))];
   log(`Found ${segments.length} segments across ${speakerSet.length} speaker(s): ${speakerSet.join(', ')}`);
 
-  return segments;
+  return { segments, durationMs };
 }

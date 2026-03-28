@@ -70,6 +70,7 @@ export async function generateCombinedAnalysis(batchId: string): Promise<void> {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: MODEL });
 
+    const t0 = Date.now();
     let usedModel = MODEL;
     let result = await model.generateContent(PROMPT + fullText).catch((err) => {
       if (!isRetryableError(err)) throw err;
@@ -89,11 +90,12 @@ export async function generateCombinedAnalysis(batchId: string): Promise<void> {
     }
 
     db.prepare(
-      'UPDATE call_batches SET combined_analysis = ?, combined_analysis_status = ?, brief_model = ?, status = ?, updated_at = ? WHERE id = ?'
+      'UPDATE call_batches SET combined_analysis = ?, combined_analysis_status = ?, brief_model = ?, brief_duration_ms = ?, status = ?, updated_at = ? WHERE id = ?'
     ).run(
       JSON.stringify(brief),
       'done',
       usedModel,
+      Date.now() - t0,
       'done',
       new Date().toISOString(),
       batchId
