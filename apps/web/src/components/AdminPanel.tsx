@@ -36,6 +36,7 @@ interface AnalyticsData {
   }[];
   aiAdoption: { total: number; briefs: number; rubrics: number };
   errors: { error_message: string; mode: string; count: number }[];
+  storage: { totalBytes: number; fileCount: number };
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -361,6 +362,13 @@ function SettingsTab() {
 
 // ── Analytics helpers ─────────────────────────────────────────────────────────
 
+function fmtBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 function fmtMs(ms: number | null): string {
   if (ms == null) return '—';
   if (ms < 1000) return `${Math.round(ms)}ms`;
@@ -436,7 +444,7 @@ function AnalyticsTab() {
   if (loading) return <div className="py-8 text-center text-zinc-500 text-sm">Loading…</div>;
   if (error || !data) return <div className="py-4 text-sm text-red-400">{error ?? 'No data'}</div>;
 
-  const { overview, activityByDay, perUser, performance, aiAdoption, errors } = data;
+  const { overview, activityByDay, perUser, performance, aiAdoption, errors, storage } = data;
   const successRate = overview.total_transcripts > 0
     ? Math.round((overview.done_count / overview.total_transcripts) * 100)
     : 0;
@@ -448,7 +456,7 @@ function AnalyticsTab() {
     <div className="space-y-6">
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <KpiCard label="Total uploads" value={overview.total_transcripts} sub={`${overview.total_batches} batch${overview.total_batches !== 1 ? 'es' : ''}`} />
         <KpiCard label="Users" value={overview.total_users} />
         <KpiCard label="Success rate" value={`${successRate}%`} sub={`${overview.error_count} error${overview.error_count !== 1 ? 's' : ''}`} />
@@ -457,6 +465,7 @@ function AnalyticsTab() {
           value={overview.this_week}
           sub={weekDelta != null ? `${weekDelta >= 0 ? '+' : ''}${weekDelta}% vs last week` : 'vs last week: no data'}
         />
+        <KpiCard label="Audio on disk" value={fmtBytes(storage.totalBytes)} sub={`${storage.fileCount} file${storage.fileCount !== 1 ? 's' : ''}`} />
       </div>
 
       {/* Activity chart */}

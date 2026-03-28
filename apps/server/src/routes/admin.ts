@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
 import db from '../db';
 import { requireAdmin } from '../middleware/auth';
 
@@ -249,7 +250,24 @@ router.get('/analytics', (_req: Request, res: Response) => {
       LIMIT 10
     `).all() as { error_message: string; mode: string; count: number }[];
 
-    res.json({ overview, activityByDay, perUser: perUserResult, performance, aiAdoption, errors });
+    // Storage on disk
+    const filePaths = db.prepare(
+      `SELECT file_path FROM transcripts WHERE file_path IS NOT NULL AND file_path != ''`
+    ).all() as { file_path: string }[];
+
+    let totalBytes = 0;
+    let fileCount = 0;
+    for (const { file_path } of filePaths) {
+      try {
+        totalBytes += fs.statSync(file_path).size;
+        fileCount++;
+      } catch {
+        // file already pruned from disk
+      }
+    }
+    const storage = { totalBytes, fileCount };
+
+    res.json({ overview, activityByDay, perUser: perUserResult, performance, aiAdoption, errors, storage });
   } catch (err) {
     console.error('Error fetching analytics:', err);
     res.status(500).json({ error: String(err) });
