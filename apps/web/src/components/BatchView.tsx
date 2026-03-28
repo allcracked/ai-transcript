@@ -4,7 +4,7 @@ import {
   ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw,
   Sparkles, RefreshCw, Calendar, Wrench, UserCheck,
   CheckCircle2, XCircle, HelpCircle, X, ChevronDown,
-  SkipBack, SkipForward, Volume2, VolumeX, Scissors,
+  SkipBack, SkipForward, Volume2, VolumeX, Scissors, Pencil,
 } from 'lucide-react';
 import { api, CallBatch, CallBrief, Rubric, Segment } from '../lib/api';
 import { Button } from './ui/button';
@@ -132,6 +132,15 @@ export function BatchView({ batchId }: { batchId: string }) {
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [briefSectionOpen, setBriefSectionOpen] = useState(true);
   const [analysisSectionOpen, setAnalysisSectionOpen] = useState(true);
+
+  // Name editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [inputWidth, setInputWidth] = useState(0);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const nameTextRef = useRef<HTMLSpanElement>(null);
+  const nameMeasureRef = useRef<HTMLSpanElement>(null);
+  const hasTypedRef = useRef(false);
 
   // Clip export state
   const [isClipMode, setIsClipMode] = useState(false);
@@ -340,6 +349,35 @@ export function BatchView({ batchId }: { batchId: string }) {
     try { await api.runBatchRubricAnalysis(batchId, rid); } catch { setRubricStatus('error'); }
   }, [batchId]);
 
+  // ── Name editing ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!isEditingName || !hasTypedRef.current || !nameMeasureRef.current) return;
+    setInputWidth(nameMeasureRef.current.offsetWidth + 18);
+  }, [editName, isEditingName]);
+
+  const startEditName = () => {
+    if (!batch) return;
+    hasTypedRef.current = false;
+    setEditName(batch.name ?? 'Call Batch');
+    setInputWidth(nameTextRef.current?.offsetWidth ?? 200);
+    setIsEditingName(true);
+    setTimeout(() => { nameInputRef.current?.select(); }, 0);
+  };
+
+  const commitEditName = async () => {
+    if (!batch) return;
+    const trimmed = editName.trim();
+    setIsEditingName(false);
+    if (!trimmed || trimmed === (batch.name ?? 'Call Batch')) return;
+    try {
+      await api.renameBatch(batch.id, trimmed);
+      setBatch((prev) => prev ? { ...prev, name: trimmed } : prev);
+    } catch (err) {
+      console.error('Failed to rename batch:', err);
+    }
+  };
+
   // ── Copy / Download ─────────────────────────────────────────────────────────
 
   const handleCopy = async () => {
@@ -498,7 +536,43 @@ export function BatchView({ batchId }: { batchId: string }) {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div className="min-w-0">
-                <h2 className="font-semibold text-zinc-100 truncate">{batch.name ?? 'Call Batch'}</h2>
+                <div className="group relative flex items-center gap-1.5 min-w-0">
+                  <span className="font-semibold text-zinc-500 flex-shrink-0">Batch</span>
+                  {isEditingName ? (
+                    <>
+                      <span
+                        ref={nameMeasureRef}
+                        aria-hidden
+                        className="absolute opacity-0 pointer-events-none whitespace-pre font-semibold"
+                      >
+                        {editName || ' '}
+                      </span>
+                      <input
+                        ref={nameInputRef}
+                        value={editName}
+                        onChange={(e) => { hasTypedRef.current = true; setEditName(e.target.value); }}
+                        onBlur={commitEditName}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitEditName(); }
+                          if (e.key === 'Escape') { e.preventDefault(); setIsEditingName(false); }
+                        }}
+                        style={{ width: inputWidth ? `${inputWidth}px` : undefined }}
+                        className="font-semibold text-zinc-100 bg-zinc-800 border border-zinc-600 rounded px-2 py-0.5 focus:outline-none focus:border-blue-500"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <span ref={nameTextRef} className="font-semibold text-zinc-100 truncate">{batch.name ?? 'Call Batch'}</span>
+                      <button
+                        onClick={startEditName}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded text-zinc-500 hover:text-zinc-200"
+                        title="Rename"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
                 <p className="text-xs text-zinc-500">
                   {batch.uploaderName && (
                     <span className="text-zinc-400">{batch.uploaderName} · </span>

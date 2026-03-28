@@ -55,6 +55,7 @@ export interface CallBatch {
 
 export interface Transcript {
   id: string;
+  name: string;
   originalFilename: string;
   filePath: string | null;
   audioUrl: string | null;
@@ -83,6 +84,7 @@ export interface HistoryItem {
   kind: 'transcript' | 'batch';
   id: string;
   name: string;
+  originalFilename: string | null;
   status: string;
   createdAt: string;
   uploaderName: string | null;
@@ -241,6 +243,24 @@ export const api = {
 
   async deleteBatch(id: string): Promise<void> {
     const res = await fetch(`${BASE}/batches/${id}`, { method: 'DELETE' });
+    return handleResponse<void>(res);
+  },
+
+  async renameTranscript(id: string, name: string): Promise<void> {
+    const res = await fetch(`${BASE}/transcripts/${id}/name`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    return handleResponse<void>(res);
+  },
+
+  async renameBatch(id: string, name: string): Promise<void> {
+    const res = await fetch(`${BASE}/batches/${id}/name`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
     return handleResponse<void>(res);
   },
 

@@ -42,6 +42,7 @@ export interface CallBatch {
 
 export interface Transcript {
   id: string;
+  name: string;
   originalFilename: string;
   filePath: string | null;
   audioUrl: string | null;

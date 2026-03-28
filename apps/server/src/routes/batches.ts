@@ -40,6 +40,7 @@ const upload = multer({
 
 interface TranscriptDbRow {
   id: string;
+  name: string | null;
   original_filename: string;
   file_path: string | null;
   status: string;
@@ -86,6 +87,7 @@ function rowToTranscript(row: TranscriptDbRow): Transcript {
   const audioUrl = row.file_path ? `/uploads/${path.basename(row.file_path)}` : null;
   return {
     id: row.id,
+    name: row.name ?? row.original_filename,
     originalFilename: row.original_filename,
     filePath: row.file_path,
     audioUrl,
@@ -499,6 +501,43 @@ router.delete('/:id', (req: Request, res: Response) => {
 
     res.status(204).send();
   } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+router.patch('/:id/name', (req: Request, res: Response) => {
+  try {
+    const { currentUser } = req as AuthRequest;
+    const { name } = req.body as { name?: string };
+
+    if (!name || !name.trim()) {
+      res.status(400).json({ error: 'Name is required' });
+      return;
+    }
+
+    const row = db.prepare('SELECT id, user_id FROM call_batches WHERE id = ?').get(req.params.id) as
+      | { id: string; user_id: string | null }
+      | undefined;
+
+    if (!row) {
+      res.status(404).json({ error: 'Batch not found' });
+      return;
+    }
+
+    if (currentUser.role !== 'admin' && row.user_id !== currentUser.id) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    db.prepare('UPDATE call_batches SET name = ?, updated_at = ? WHERE id = ?').run(
+      name.trim(),
+      new Date().toISOString(),
+      req.params.id
+    );
+
+    res.json({ id: req.params.id, name: name.trim() });
+  } catch (err) {
+    console.error('Error renaming batch:', err);
     res.status(500).json({ error: String(err) });
   }
 });

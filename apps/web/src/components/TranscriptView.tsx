@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw, Sparkles, RefreshCw, Calendar, Wrench, UserCheck, CheckCircle2, XCircle, HelpCircle, Scissors, X, ChevronDown, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Check, Play, Pause, RotateCcw, Sparkles, RefreshCw, Calendar, Wrench, UserCheck, CheckCircle2, XCircle, HelpCircle, Scissors, X, ChevronDown, SkipBack, SkipForward, Volume2, VolumeX, Pencil } from 'lucide-react';
 import { api, Transcript, Segment, CallBrief, Rubric } from '../lib/api';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -122,6 +122,15 @@ export function TranscriptView() {
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [briefSectionOpen, setBriefSectionOpen] = useState(true);
   const [analysisSectionOpen, setAnalysisSectionOpen] = useState(true);
+
+  // Name editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [inputWidth, setInputWidth] = useState(0);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const nameTextRef = useRef<HTMLHeadingElement>(null);
+  const nameMeasureRef = useRef<HTMLSpanElement>(null);
+  const hasTypedRef = useRef(false);
 
   // Snippet export state
   const [isClipMode, setIsClipMode] = useState(false);
@@ -247,6 +256,34 @@ export function TranscriptView() {
     a.download = `${transcript.originalFilename.replace(/\.[^.]+$/, '')}_transcript.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  useEffect(() => {
+    if (!isEditingName || !hasTypedRef.current || !nameMeasureRef.current) return;
+    // +18 = px-2 (8px each side) + border (1px each side)
+    setInputWidth(nameMeasureRef.current.offsetWidth + 18);
+  }, [editName, isEditingName]);
+
+  const startEditName = () => {
+    if (!transcript) return;
+    hasTypedRef.current = false;
+    setEditName(transcript.name);
+    setInputWidth(nameTextRef.current?.offsetWidth ?? 200);
+    setIsEditingName(true);
+    setTimeout(() => { nameInputRef.current?.select(); }, 0);
+  };
+
+  const commitEditName = async () => {
+    if (!transcript) return;
+    const trimmed = editName.trim();
+    setIsEditingName(false);
+    if (!trimmed || trimmed === transcript.name) return;
+    try {
+      await api.renameTranscript(transcript.id, trimmed);
+      setTranscript((prev) => prev ? { ...prev, name: trimmed } : prev);
+    } catch (err) {
+      console.error('Failed to rename transcript:', err);
+    }
   };
 
   const togglePlay = useCallback(() => {
@@ -487,15 +524,48 @@ export function TranscriptView() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div className="min-w-0">
-                <h2
-                  title={transcript.originalFilename}
-                  className="font-semibold text-zinc-100 truncate cursor-default"
-                >
-                  {transcript.originalFilename}
-                </h2>
+                <div className="group relative flex items-center gap-1.5 min-w-0">
+                  {isEditingName ? (
+                    <>
+                      <span
+                        ref={nameMeasureRef}
+                        aria-hidden
+                        className="absolute opacity-0 pointer-events-none whitespace-pre font-semibold"
+                      >
+                        {editName || ' '}
+                      </span>
+                      <input
+                        ref={nameInputRef}
+                        value={editName}
+                        onChange={(e) => { hasTypedRef.current = true; setEditName(e.target.value); }}
+                        onBlur={commitEditName}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitEditName(); }
+                          if (e.key === 'Escape') { e.preventDefault(); setIsEditingName(false); }
+                        }}
+                        style={{ width: inputWidth ? `${inputWidth}px` : undefined }}
+                        className="font-semibold text-zinc-100 bg-zinc-800 border border-zinc-600 rounded px-2 py-0.5 focus:outline-none focus:border-blue-500"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <h2 ref={nameTextRef} className="font-semibold text-zinc-100 truncate">{transcript.name}</h2>
+                      <button
+                        onClick={startEditName}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded text-zinc-500 hover:text-zinc-200"
+                        title="Rename"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
                 <p className="text-xs text-zinc-500">
                   {transcript.uploaderName && (
                     <span className="text-zinc-400">{transcript.uploaderName} · </span>
+                  )}
+                  {transcript.name !== transcript.originalFilename && (
+                    <span className="text-zinc-600">{transcript.originalFilename} · </span>
                   )}
                   {createdDate}
                 </p>

@@ -496,6 +496,9 @@ function HistoryCard({ item, deletingId, onView, onReprocess, onDelete }: CardPr
 
           <div className="min-w-0">
             <p className="font-medium text-zinc-100 truncate">{item.name}</p>
+            {item.originalFilename && item.originalFilename !== item.name && (
+              <p className="text-xs text-zinc-600 truncate">{item.originalFilename}</p>
+            )}
 
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               <Badge variant={statusVariant(item.status)}>{item.status}</Badge>

@@ -158,5 +158,8 @@ if (!transcriptColsV2.find((c) => c.name === 'brief_model')) {
 if (!transcriptColsV2.find((c) => c.name === 'rubric_model')) {
   db.exec(`ALTER TABLE transcripts ADD COLUMN rubric_model TEXT`);
 }
+if (!transcriptColsV2.find((c) => c.name === 'name')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN name TEXT`);
+}
 
 export default db;

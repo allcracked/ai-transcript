@@ -6,6 +6,7 @@ interface HistoryRow {
   kind: string;
   id: string;
   name: string;
+  original_filename: string | null;
   status: string;
   created_at: string;
   uploader_name: string | null;
@@ -47,13 +48,14 @@ router.get('/', (req: Request, res: Response) => {
 
     if (!isAdmin) { tConds.push('t.user_id = ?'); tParams.push(currentUser.id); }
     if (status)   { tConds.push('t.status = ?');  tParams.push(status); }
-    if (search)   { tConds.push('t.original_filename LIKE ?'); tParams.push(`%${search}%`); }
+    if (search)   { tConds.push('(t.original_filename LIKE ? OR t.name LIKE ?)'); tParams.push(`%${search}%`, `%${search}%`); }
     if (dateFrom) { tConds.push('t.created_at >= ?'); tParams.push(dateFrom); }
     if (dateTo)   { tConds.push('t.created_at <= ?'); tParams.push(`${dateTo}T23:59:59.999Z`); }
     if (uploader) { tConds.push('u.name LIKE ?'); tParams.push(`%${uploader}%`); }
 
     const transcriptSub = `
-      SELECT 'transcript' AS kind, t.id, t.original_filename AS name,
+      SELECT 'transcript' AS kind, t.id, COALESCE(t.name, t.original_filename) AS name,
+             t.original_filename,
              t.status, t.created_at, u.name AS uploader_name,
              t.model, t.mode, t.error_message, NULL AS call_count
       FROM transcripts t
@@ -73,6 +75,7 @@ router.get('/', (req: Request, res: Response) => {
 
     const batchSub = `
       SELECT 'batch' AS kind, cb.id, COALESCE(cb.name, 'Call Batch') AS name,
+             NULL AS original_filename,
              cb.status, cb.created_at, u.name AS uploader_name,
              tf.model, NULL AS mode, NULL AS error_message,
              (SELECT COUNT(*) FROM transcripts WHERE batch_id = cb.id) AS call_count
@@ -109,6 +112,7 @@ router.get('/', (req: Request, res: Response) => {
       kind: row.kind as 'transcript' | 'batch',
       id: row.id,
       name: row.name,
+      originalFilename: row.original_filename ?? null,
       status: row.status,
       createdAt: row.created_at,
       uploaderName: row.uploader_name ?? null,
