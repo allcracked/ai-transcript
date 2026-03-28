@@ -70,9 +70,11 @@ export async function generateCombinedAnalysis(batchId: string): Promise<void> {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: MODEL });
 
+    let usedModel = MODEL;
     let result = await model.generateContent(PROMPT + fullText).catch((err) => {
       if (!isRetryableError(err)) throw err;
       console.warn(`[BATCH-BRIEF] Retrying with fallback model for batch ${batchId}`);
+      usedModel = FALLBACK_MODEL;
       const fallback = genAI.getGenerativeModel({ model: FALLBACK_MODEL });
       return fallback.generateContent(PROMPT + fullText);
     });
@@ -87,10 +89,11 @@ export async function generateCombinedAnalysis(batchId: string): Promise<void> {
     }
 
     db.prepare(
-      'UPDATE call_batches SET combined_analysis = ?, combined_analysis_status = ?, status = ?, updated_at = ? WHERE id = ?'
+      'UPDATE call_batches SET combined_analysis = ?, combined_analysis_status = ?, brief_model = ?, status = ?, updated_at = ? WHERE id = ?'
     ).run(
       JSON.stringify(brief),
       'done',
+      usedModel,
       'done',
       new Date().toISOString(),
       batchId

@@ -55,9 +55,11 @@ interface TranscriptDbRow {
   uploader_name: string | null;
   brief: string | null;
   brief_status: string | null;
+  brief_model: string | null;
   rubric_id: string | null;
   rubric_result: string | null;
   rubric_status: string | null;
+  rubric_model: string | null;
   batch_id: string | null;
   batch_order: number | null;
 }
@@ -68,12 +70,14 @@ interface BatchDbRow {
   status: string;
   combined_analysis: string | null;
   combined_analysis_status: string | null;
+  brief_model: string | null;
   user_id: string | null;
   uploader_name: string | null;
   transcript_model: string | null;
   rubric_id: string | null;
   rubric_result: string | null;
   rubric_status: string | null;
+  rubric_model: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,9 +101,11 @@ function rowToTranscript(row: TranscriptDbRow): Transcript {
     uploaderName: row.uploader_name ?? null,
     brief: row.brief ? (JSON.parse(row.brief) as CallBrief) : null,
     briefStatus: (row.brief_status ?? null) as Transcript['briefStatus'],
+    briefModel: row.brief_model ?? null,
     rubricId: row.rubric_id ?? null,
     rubricResult: row.rubric_result ?? null,
     rubricStatus: (row.rubric_status ?? null) as Transcript['rubricStatus'],
+    rubricModel: row.rubric_model ?? null,
     batchId: row.batch_id ?? null,
     batchOrder: row.batch_order ?? null,
   };
@@ -112,12 +118,14 @@ function rowToBatch(row: BatchDbRow, transcripts?: Transcript[]): CallBatch {
     status: row.status as CallBatch['status'],
     brief: row.combined_analysis ? (JSON.parse(row.combined_analysis) as CallBrief) : null,
     briefStatus: (row.combined_analysis_status ?? null) as CallBatch['briefStatus'],
+    briefModel: row.brief_model ?? null,
     userId: row.user_id,
     uploaderName: row.uploader_name ?? null,
     model: row.transcript_model ?? null,
     rubricId: row.rubric_id ?? null,
     rubricResult: row.rubric_result ?? null,
     rubricStatus: (row.rubric_status ?? null) as CallBatch['rubricStatus'],
+    rubricModel: row.rubric_model ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     transcripts,

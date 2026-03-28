@@ -54,17 +54,19 @@ export async function runRubricAnalysis(transcriptId: string, rubricId: string):
     const model = genAI.getGenerativeModel({ model: MODEL });
 
     const prompt = `${rubric.prompt}\n\nTranscript:\n${transcriptText}`;
+    let usedModel = MODEL;
     let result = await model.generateContent(prompt).catch((err) => {
       if (!isRetryableError(err)) throw err;
       console.warn(`[RUBRIC] Retrying with fallback model for transcript ${transcriptId}`);
+      usedModel = FALLBACK_MODEL;
       const fallback = genAI.getGenerativeModel({ model: FALLBACK_MODEL });
       return fallback.generateContent(prompt);
     });
     const text = result.response.text().trim();
 
     db.prepare(
-      'UPDATE transcripts SET rubric_result = ?, rubric_status = ?, updated_at = ? WHERE id = ?'
-    ).run(text, 'done', new Date().toISOString(), transcriptId);
+      'UPDATE transcripts SET rubric_result = ?, rubric_status = ?, rubric_model = ?, updated_at = ? WHERE id = ?'
+    ).run(text, 'done', usedModel, new Date().toISOString(), transcriptId);
 
     console.log(`[RUBRIC] ✓ Analysis saved for transcript ${transcriptId}`);
   } catch (err) {

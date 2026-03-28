@@ -27,9 +27,11 @@ export interface CallBatch {
   status: BatchStatus;
   brief: CallBrief | null;
   briefStatus: BriefStatus | null;
+  briefModel: string | null;
   rubricId: string | null;
   rubricResult: string | null;
   rubricStatus: BriefStatus | null;
+  rubricModel: string | null;
   userId: string | null;
   uploaderName: string | null;
   model: string | null;
@@ -55,9 +57,11 @@ export interface Transcript {
   uploaderName: string | null;
   brief: CallBrief | null;
   briefStatus: BriefStatus | null;
+  briefModel: string | null;
   rubricId: string | null;
   rubricResult: string | null;
   rubricStatus: BriefStatus | null;
+  rubricModel: string | null;
   batchId: string | null;
   batchOrder: number | null;
 }

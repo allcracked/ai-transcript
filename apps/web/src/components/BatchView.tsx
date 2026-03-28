@@ -839,6 +839,16 @@ export function BatchView({ batchId }: { batchId: string }) {
                     {(briefStatus === 'processing' || briefStatus === 'pending') && (
                       <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
                     )}
+                    {batch.briefModel && (
+                      <span className={cn(
+                        'rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                        batch.briefModel === 'gemini-3.1-flash-lite-preview'
+                          ? 'border-purple-500/30 bg-purple-500/10 text-purple-400'
+                          : 'border-orange-500/30 bg-orange-500/10 text-orange-400'
+                      )}>
+                        {batch.briefModel}
+                      </span>
+                    )}
                   </div>
                   <ChevronDown className={cn('h-3.5 w-3.5 text-zinc-500 transition-transform duration-150', briefSectionOpen ? '' : '-rotate-90')} />
                 </button>
@@ -924,6 +934,16 @@ export function BatchView({ batchId }: { batchId: string }) {
                     Analysis
                     {(rubricStatus === 'processing' || rubricStatus === 'pending') && (
                       <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    )}
+                    {batch.rubricModel && (
+                      <span className={cn(
+                        'rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                        batch.rubricModel === 'gemini-3.1-flash-lite-preview'
+                          ? 'border-purple-500/30 bg-purple-500/10 text-purple-400'
+                          : 'border-orange-500/30 bg-orange-500/10 text-orange-400'
+                      )}>
+                        {batch.rubricModel}
+                      </span>
                     )}
                   </div>
                   <ChevronDown className={cn('h-3.5 w-3.5 text-zinc-500 transition-transform duration-150', analysisSectionOpen ? '' : '-rotate-90')} />

@@ -143,5 +143,20 @@ if (!batchCols.find((c) => c.name === 'rubric_result')) {
 if (!batchCols.find((c) => c.name === 'rubric_status')) {
   db.exec(`ALTER TABLE call_batches ADD COLUMN rubric_status TEXT`);
 }
+if (!batchCols.find((c) => c.name === 'brief_model')) {
+  db.exec(`ALTER TABLE call_batches ADD COLUMN brief_model TEXT`);
+}
+if (!batchCols.find((c) => c.name === 'rubric_model')) {
+  db.exec(`ALTER TABLE call_batches ADD COLUMN rubric_model TEXT`);
+}
+
+// Add AI model tracking columns to transcripts if they don't exist
+const transcriptColsV2 = db.prepare(`PRAGMA table_info(transcripts)`).all() as { name: string }[];
+if (!transcriptColsV2.find((c) => c.name === 'brief_model')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN brief_model TEXT`);
+}
+if (!transcriptColsV2.find((c) => c.name === 'rubric_model')) {
+  db.exec(`ALTER TABLE transcripts ADD COLUMN rubric_model TEXT`);
+}
 
 export default db;
