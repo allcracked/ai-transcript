@@ -3,7 +3,7 @@ import db from '../db';
 import { CallBrief, Segment } from '../types';
 import { FALLBACK_MODEL, isRetryableError } from './gemini-retry';
 
-const MODEL = 'gemini-3.1-flash-lite-preview';
+const MODEL = 'gemini-3.1-flash-lite';
 
 // Same prompt as brief.ts — applied to all calls concatenated
 const PROMPT = `You are analyzing a series of phone call transcripts (callbacks). Each line is prefixed with a timestamp in seconds and the speaker label. Multiple calls are separated by === Call N === headers.

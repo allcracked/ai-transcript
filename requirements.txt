@@ -6,3 +6,6 @@ torchaudio>=2.0.0
 
 # Optional: only needed for --local mode (fully offline transcription)
 # openai-whisper>=20231117
+
+# Development dependencies
+pytest>=7.0.0

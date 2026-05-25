@@ -3,7 +3,7 @@ import db from '../db';
 import { Segment } from '../types';
 import { FALLBACK_MODEL, isRetryableError } from './gemini-retry';
 
-const MODEL = 'gemini-3.1-flash-lite-preview';
+const MODEL = 'gemini-3.1-flash-lite';
 
 function formatSeconds(s: number): string {
   const m = Math.floor(s / 60);

@@ -918,7 +918,7 @@ export function TranscriptView() {
                     {transcript.briefModel && (
                       <span className={cn(
                         'rounded-full border px-2 py-0.5 text-[10px] font-medium',
-                        transcript.briefModel === 'gemini-3.1-flash-lite-preview'
+                        transcript.briefModel === 'gemini-3.1-flash-lite'
                           ? 'border-purple-500/30 bg-purple-500/10 text-purple-400'
                           : 'border-orange-500/30 bg-orange-500/10 text-orange-400'
                       )}>
@@ -1014,7 +1014,7 @@ export function TranscriptView() {
                     {transcript.rubricModel && (
                       <span className={cn(
                         'rounded-full border px-2 py-0.5 text-[10px] font-medium',
-                        transcript.rubricModel === 'gemini-3.1-flash-lite-preview'
+                        transcript.rubricModel === 'gemini-3.1-flash-lite'
                           ? 'border-purple-500/30 bg-purple-500/10 text-purple-400'
                           : 'border-orange-500/30 bg-orange-500/10 text-orange-400'
                       )}>

@@ -3,7 +3,7 @@ import db from '../db';
 import { CallBrief, Segment } from '../types';
 import { FALLBACK_MODEL, isRetryableError } from './gemini-retry';
 
-const MODEL = 'gemini-3.1-flash-lite-preview';
+const MODEL = 'gemini-3.1-flash-lite';
 
 const PROMPT = `You are analyzing a phone call transcript. Each line is prefixed with a timestamp in seconds and the speaker label.
 
