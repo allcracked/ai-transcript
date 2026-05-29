@@ -1,7 +1,7 @@
 import fs from 'fs';
 import db from '../db';
 
-const STORAGE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB
+const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
 
 interface FileRow {
   id: string;
@@ -36,7 +36,7 @@ export function enforceStorageLimit(): void {
   if (totalBytes <= STORAGE_LIMIT_BYTES) return;
 
   console.log(
-    `[STORAGE] Usage ${(totalBytes / 1e9).toFixed(2)} GB exceeds 10 GB limit — pruning oldest files`
+    `[STORAGE] Usage ${(totalBytes / 1e9).toFixed(2)} GB exceeds 5 GB limit — pruning oldest files`
   );
 
   for (const row of withSize) {
